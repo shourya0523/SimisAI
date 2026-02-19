@@ -8,7 +8,7 @@ const app = express();
 app.use(express.urlencoded({ extended: false }));
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -122,7 +122,7 @@ async function getSimiResponse(phone, incomingMsg) {
   // Gemini takes history separately from the current message
   const chat = model.startChat({
     history: history.slice(-30, -1), // all but last message
-    systemInstruction: systemPrompt,
+    systemInstruction: { role: "system", parts: [{ text: systemPrompt }] },
     generationConfig: { maxOutputTokens: 300 },
   });
 
