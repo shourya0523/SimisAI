@@ -1,21 +1,23 @@
 import express from "express";
 import twilio from "twilio";
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 const app = express();
 app.use(express.urlencoded({ extended: false }));
 
-const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
 );
 
-const WA_SANDBOX = "whatsapp:+14155238886"; // Twilio WhatsApp sandbox number
+const WA_SANDBOX = "whatsapp:+14155238886";
 
-// In-memory session store: phone → { mode, history }
+// In-memory session store: phone → { mode, history, isNew }
 const sessions = new Map();
 
 // ─── Session Helpers ──────────────────────────────────────────────────────────
@@ -70,7 +72,7 @@ HOW TO RUN EACH DEMO:
 - If the user asks a general question about the product instead of picking a capability, answer it concisely and redirect: "Want to see that in action?"
 
 OPENING MESSAGE RULES:
-If this is the user's very first message, ignore its content entirely — including any WhatsApp sandbox join confirmation message — and respond with the demo introduction:
+If this is the user's very first message, ignore its content entirely — including any WhatsApp sandbox join confirmation — and respond with the demo introduction:
 - Introduce yourself as Simi
 - Acknowledge this is a live demo of SimisAI
 - Briefly list capabilities in one natural sentence, not a bullet list
@@ -109,24 +111,25 @@ async function getSimiResponse(phone, incomingMsg) {
   const session = getSession(phone);
   const { mode, history, isNew } = session;
 
-  // On first message, ignore content and trigger opening
   const userContent = isNew ? "__FIRST_MESSAGE__" : incomingMsg;
   session.isNew = false;
 
-  history.push({ role: "user", content: userContent });
+  // Gemini uses {role, parts} format
+  history.push({ role: "user", parts: [{ text: userContent }] });
 
-  // Keep last 30 messages in context
-  const recentHistory = history.slice(-30);
+  const systemPrompt = mode === "demo" ? DEMO_PROMPT : FREEFORM_PROMPT;
 
-  const response = await ai.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 300,
-    system: mode === "demo" ? DEMO_PROMPT : FREEFORM_PROMPT,
-    messages: recentHistory,
+  // Gemini takes history separately from the current message
+  const chat = model.startChat({
+    history: history.slice(-30, -1), // all but last message
+    systemInstruction: systemPrompt,
+    generationConfig: { maxOutputTokens: 300 },
   });
 
-  const reply = response.content[0].text;
-  history.push({ role: "assistant", content: reply });
+  const result = await chat.sendMessage(userContent);
+  const reply = result.response.text();
+
+  history.push({ role: "model", parts: [{ text: reply }] });
 
   return reply;
 }
@@ -138,7 +141,6 @@ app.post("/sms", async (req, res) => {
   const body = req.body.Body?.trim();
   const twiml = new twilio.twiml.MessagingResponse();
 
-  // Admin commands
   const cmd = body?.toUpperCase();
 
   if (cmd === "ADMIN RESET") {
