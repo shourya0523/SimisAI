@@ -1,26 +1,35 @@
 import express from "express";
-import Anthropic from "@anthropic-ai/sdk";
-import { createClient } from "redis";
 import twilio from "twilio";
+import Anthropic from "@anthropic-ai/sdk";
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 const app = express();
-app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const redis = createClient({ url: process.env.REDIS_URL });
-redis.on("error", (err) => console.error("Redis error:", err));
-await redis.connect();
-
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
 );
 
-const WA_NUMBER = "whatsapp:+14155238886"; // Twilio WhatsApp sandbox number
-const SESSION_TTL = 60 * 60 * 24; // 24 hours
+const WA_SANDBOX = "whatsapp:+14155238886"; // Twilio WhatsApp sandbox number
+
+// In-memory session store: phone → { mode, history }
+const sessions = new Map();
+
+// ─── Session Helpers ──────────────────────────────────────────────────────────
+
+function getSession(phone) {
+  if (!sessions.has(phone)) {
+    sessions.set(phone, { mode: "demo", history: [], isNew: true });
+  }
+  return sessions.get(phone);
+}
+
+function resetSession(phone, mode = "demo") {
+  sessions.set(phone, { mode, history: [], isNew: true });
+}
 
 // ─── System Prompts ──────────────────────────────────────────────────────────
 
@@ -40,7 +49,7 @@ const DEMO_PROMPT = `You are Simi, an AI SMS health companion for epilepsy patie
 ${BASE_RULES}
 
 YOUR ROLE IN THIS DEMO:
-You are a capability explorer. The user has scanned a QR code to experience SimisAI firsthand. Your job is to let them drive — they pick what to explore, you demonstrate it through a short, realistic interaction, then offer to show them something else.
+You are a capability explorer. The user has scanned a QR code and joined via WhatsApp to experience SimisAI firsthand. Your job is to let them drive — they pick what to explore, you demonstrate it through a short, realistic interaction, then offer to show them something else.
 
 CAPABILITIES YOU CAN DEMONSTRATE:
 1. Medication Reminders — proactive check-ins, missed dose follow-ups, multi-attempt escalation to caregivers, adherence logging
@@ -61,10 +70,10 @@ HOW TO RUN EACH DEMO:
 - If the user asks a general question about the product instead of picking a capability, answer it concisely and redirect: "Want to see that in action?"
 
 OPENING MESSAGE RULES:
-If this is the user's very first message, ignore its content and respond with the demo introduction:
+If this is the user's very first message, ignore its content entirely — including any WhatsApp sandbox join confirmation message — and respond with the demo introduction:
 - Introduce yourself as Simi
-- Acknowledge this is a live demo
-- List capabilities as a short natural sentence, not a bullet list
+- Acknowledge this is a live demo of SimisAI
+- Briefly list capabilities in one natural sentence, not a bullet list
 - Ask what they'd like to explore first
 Keep the opening to 3 sentences max.
 
@@ -84,7 +93,7 @@ ${BASE_RULES}
 
 You have the following capabilities — use them naturally based on what the user says:
 - Log medications (taken or missed), seizures, mood scores, side effects, and auras
-- Send caregiver alerts for escalations (simulate confirmation: "Alert sent to your caregiver ✓")
+- Send caregiver alerts for escalations (simulate: "Alert sent to your caregiver ✓")
 - Schedule provider calls and generate visit summaries
 - Generate personalized risk alerts from adherence and lifestyle patterns
 - Run disguised PHQ-2, GAD-2, and C-SSRS screenings as casual check-ins
@@ -94,123 +103,73 @@ You have the following capabilities — use them naturally based on what the use
 
 Behave as you would with a real patient. Proactively check in, follow up on concerning responses, and always explain your reasoning when flagging something for a provider. Make this feel like a continuous, intelligent health relationship.`;
 
-// ─── Redis Helpers ────────────────────────────────────────────────────────────
-
-const k = (phone, type) => `user:${phone}:${type}`;
-
-async function getMode(phone) {
-  return (await redis.get(k(phone, "mode"))) || "demo";
-}
-
-async function isNewUser(phone) {
-  return !(await redis.get(k(phone, "history")));
-}
-
-async function getHistory(phone) {
-  const data = await redis.get(k(phone, "history"));
-  return data ? JSON.parse(data) : [];
-}
-
-async function saveHistory(phone, history) {
-  await redis.set(
-    k(phone, "history"),
-    JSON.stringify(history.slice(-30)),
-    { EX: SESSION_TTL }
-  );
-}
-
-async function resetSession(phone) {
-  await redis.del(k(phone, "mode"));
-  await redis.del(k(phone, "history"));
-}
-
-// ─── Send SMS via Vonage ──────────────────────────────────────────────────────
-
-async function sendSMS(to, text) {
-  await twilioClient.messages.create({
-    from: WA_NUMBER,
-    to: `whatsapp:${to}`,
-    body: text,
-  });
-}
-
 // ─── Core Response Logic ──────────────────────────────────────────────────────
 
 async function getSimiResponse(phone, incomingMsg) {
-  const [mode, newUser, history] = await Promise.all([
-    getMode(phone),
-    isNewUser(phone),
-    getHistory(phone),
-  ]);
+  const session = getSession(phone);
+  const { mode, history, isNew } = session;
 
-  const userContent = mode === "demo" && newUser
-    ? "__FIRST_MESSAGE__"
-    : incomingMsg;
+  // On first message, ignore content and trigger opening
+  const userContent = isNew ? "__FIRST_MESSAGE__" : incomingMsg;
+  session.isNew = false;
 
   history.push({ role: "user", content: userContent });
 
-  const systemPrompt = mode === "demo" ? DEMO_PROMPT : FREEFORM_PROMPT;
+  // Keep last 30 messages in context
+  const recentHistory = history.slice(-30);
 
   const response = await ai.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 300,
-    system: systemPrompt,
-    messages: history,
+    system: mode === "demo" ? DEMO_PROMPT : FREEFORM_PROMPT,
+    messages: recentHistory,
   });
 
   const reply = response.content[0].text;
   history.push({ role: "assistant", content: reply });
-  await saveHistory(phone, history);
 
   return reply;
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
-// Vonage inbound webhook — handles both GET (verification) and POST (messages)
-app.get("/sms", (req, res) => res.status(200).end());
-
 app.post("/sms", async (req, res) => {
-  // Vonage sends params in body or query depending on account settings
-  const from = req.body.msisdn || req.query.msisdn;
-  const body = (req.body.text || req.query.text)?.trim();
-
-  // Acknowledge Vonage immediately — must respond 200 fast
-  res.status(200).end();
-
-  const cmd = body?.toUpperCase();
+  const from = req.body.From?.replace("whatsapp:", "");
+  const body = req.body.Body?.trim();
+  const twiml = new twilio.twiml.MessagingResponse();
 
   // Admin commands
+  const cmd = body?.toUpperCase();
+
   if (cmd === "ADMIN RESET") {
-    await resetSession(from);
-    await sendSMS(from, "Session reset ✓ — text anything to start fresh.");
-    return;
+    resetSession(from);
+    twiml.message("Session reset ✓ — text anything to start fresh.");
+    return res.type("text/xml").send(twiml.toString());
   }
 
   if (cmd === "ADMIN FREEFORM") {
-    await resetSession(from);
-    await redis.set(k(from, "mode"), "freeform", { EX: SESSION_TTL });
-    await sendSMS(from, "Freeform mode ✓ — text anything to begin.");
-    return;
+    resetSession(from, "freeform");
+    twiml.message("Freeform mode ✓ — text anything to begin.");
+    return res.type("text/xml").send(twiml.toString());
   }
 
   if (cmd === "ADMIN DEMO") {
-    await resetSession(from);
-    await redis.set(k(from, "mode"), "demo", { EX: SESSION_TTL });
-    await sendSMS(from, "Demo mode ✓ — text anything to begin.");
-    return;
+    resetSession(from, "demo");
+    twiml.message("Demo mode ✓ — text anything to begin.");
+    return res.type("text/xml").send(twiml.toString());
   }
 
   try {
     const reply = await getSimiResponse(from, body);
-    await sendSMS(from, reply);
+    twiml.message(reply);
   } catch (err) {
     console.error(err);
-    await sendSMS(from, "Something went wrong — try again in a moment.");
+    twiml.message("Something went wrong — try again in a moment.");
   }
+
+  res.type("text/xml").send(twiml.toString());
 });
 
-// Health check
 app.get("/", (_, res) => res.send("SimisAI is running ✓"));
 
 app.listen(3000, () => console.log("SimisAI running on port 3000"));
