@@ -51,7 +51,7 @@ async function createTemplate(friendly_name, body, actions) {
 
 async function initTemplates() {
   console.log("Creating WhatsApp templates...");
-  const [m1, m2, m3, yn, next] = await Promise.all([
+  const [m1, m2, m3, yn, next] = await Promise.allSettled([
     createTemplate(
       "simisai_menu_1",
       "👋 I'm *Simi* — an AI health companion built for epilepsy patients that app-based tools leave behind.\n\nNo app. No smartphone needed. Just a text message — on any phone, in any language.\n\nExplore a capability to see how SimisAI works:",
@@ -68,7 +68,7 @@ async function initTemplates() {
       [
         { id: "risk",       title: "⚠️ Risk Forecasting" },
         { id: "schedule",   title: "📅 Provider Scheduling" },
-        { id: "caregiver",  title: "👨‍👩‍👧 Caregiver Coordination" },
+        { id: "caregiver",  title: "👨‍👩‍👧 Caregiver Alerts" },
         { id: "more_2",     title: "More options →" },
       ]
     ),
@@ -100,12 +100,17 @@ async function initTemplates() {
     ),
   ]);
 
-  templates.menu1 = m1;
-  templates.menu2 = m2;
-  templates.menu3 = m3;
-  templates.yesNo = yn;
-  templates.next  = next;
+  const results = { menu1: m1, menu2: m2, menu3: m3, yesNo: yn, next };
+  for (const [name, result] of Object.entries(results)) {
+    if (result.status === "fulfilled") {
+      templates[name] = result.value;
+    } else {
+      console.error(`Template ${name} failed:`, result.reason?.message);
+    }
+  }
 
+  const failed = Object.entries(templates).filter(([, v]) => !v).map(([k]) => k);
+  if (failed.length) throw new Error(`Failed templates: ${failed.join(", ")}`);
   console.log("All templates ready ✓");
 }
 
