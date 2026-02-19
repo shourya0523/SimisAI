@@ -15,117 +15,25 @@ const twilioClient = twilio(
   process.env.TWILIO_AUTH_TOKEN
 );
 
-const WA_FROM = "whatsapp:+14155238886"; // Twilio sandbox number
-const CONTENT_API = `https://content.twilio.com/v1/Content`;
-const AUTH = Buffer.from(
-  `${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`
-).toString("base64");
+const WA_FROM = "whatsapp:+14155238886";
 
-// In-memory stores
-const sessions = new Map();   // phone → { history, menuPage, currentCap, mode }
-const templates = {};         // named ContentSids created at startup
+// In-memory session store
+const sessions = new Map();
 
-// ─── Content API – Create Templates ──────────────────────────────────────────
+// ─── Session Helpers ──────────────────────────────────────────────────────────
 
-async function createTemplate(friendly_name, body, actions) {
-  const res = await fetch(CONTENT_API, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Basic ${AUTH}`,
-    },
-    body: JSON.stringify({
-      friendly_name,
-      language: "en",
-      types: {
-        "twilio/quick-reply": { body, actions },
-        "twilio/text": { body }, // SMS fallback
-      },
-    }),
-  });
-  const data = await res.json();
-  if (!data.sid) throw new Error(`Template creation failed: ${JSON.stringify(data)}`);
-  console.log(`Template created: ${friendly_name} → ${data.sid}`);
-  return data.sid;
-}
-
-async function initTemplates() {
-  console.log("Creating WhatsApp templates...");
-  const [m1, m2, m3, yn, next] = await Promise.allSettled([
-    createTemplate(
-      "simisai_menu_1",
-      "👋 I'm *Simi* — an AI health companion built for epilepsy patients that app-based tools leave behind.\n\nNo app. No smartphone needed. Just a text message — on any phone, in any language.\n\nExplore a capability to see how SimisAI works:",
-      [
-        { id: "medication", title: "💊 Medication Reminders" },
-        { id: "seizure",    title: "🧠 Seizure Tracking" },
-        { id: "mental",     title: "💬 Mental Health" },
-        { id: "more_1",     title: "More options →" },
-      ]
-    ),
-    createTemplate(
-      "simisai_menu_2",
-      "More capabilities to explore:",
-      [
-        { id: "risk",       title: "⚠️ Risk Forecasting" },
-        { id: "schedule",   title: "📅 Provider Scheduling" },
-        { id: "caregiver",  title: "👨‍👩‍👧 Caregiver Alerts" },
-        { id: "more_2",     title: "More options →" },
-      ]
-    ),
-    createTemplate(
-      "simisai_menu_3",
-      "More capabilities to explore:",
-      [
-        { id: "refill",     title: "🔄 Refill Reminders" },
-        { id: "sideeffect", title: "📋 Side Effect Monitoring" },
-        { id: "language",   title: "🌍 Language Support" },
-        { id: "back",       title: "← Back to start" },
-      ]
-    ),
-    createTemplate(
-      "simisai_yes_no",
-      "{{1}}",
-      [
-        { id: "yes", title: "Yes" },
-        { id: "no",  title: "No" },
-      ]
-    ),
-    createTemplate(
-      "simisai_next",
-      "{{1}}",
-      [
-        { id: "menu",    title: "🔁 Try another feature" },
-        { id: "freeform", title: "💬 Ask Simi anything" },
-      ]
-    ),
-  ]);
-
-  const results = { menu1: m1, menu2: m2, menu3: m3, yesNo: yn, next };
-  for (const [name, result] of Object.entries(results)) {
-    if (result.status === "fulfilled") {
-      templates[name] = result.value;
-    } else {
-      console.error(`Template ${name} failed:`, result.reason?.message);
-    }
+function getSession(phone) {
+  if (!sessions.has(phone)) {
+    sessions.set(phone, { mode: "demo", history: [], isNew: true, currentCap: null });
   }
-
-  const failed = Object.entries(templates).filter(([, v]) => !v).map(([k]) => k);
-  if (failed.length) throw new Error(`Failed templates: ${failed.join(", ")}`);
-  console.log("All templates ready ✓");
+  return sessions.get(phone);
 }
 
-// ─── Send Helpers ─────────────────────────────────────────────────────────────
-
-async function sendTemplate(to, contentSid, contentVariables = {}) {
-  return twilioClient.messages.create({
-    from: WA_FROM,
-    to: `whatsapp:${to}`,
-    contentSid,
-    ...(Object.keys(contentVariables).length
-      ? { contentVariables: JSON.stringify(contentVariables) }
-      : {}),
-  });
+function resetSession(phone, mode = "demo") {
+  sessions.set(phone, { mode, history: [], isNew: true, currentCap: null });
 }
+
+// ─── Send Helper ──────────────────────────────────────────────────────────────
 
 async function sendText(to, body) {
   return twilioClient.messages.create({
@@ -135,49 +43,41 @@ async function sendText(to, body) {
   });
 }
 
-async function sendMenu(to, page = 1) {
-  const sid = page === 1 ? templates.menu1
-            : page === 2 ? templates.menu2
-            : templates.menu3;
-  return sendTemplate(to, sid);
+// ─── Menu ─────────────────────────────────────────────────────────────────────
+
+const MENU = `👋 I'm *Simi* — an AI health companion for epilepsy patients that app-based tools leave behind. No app, no smartphone needed.
+
+What would you like to explore?
+
+1️⃣ Medication Reminders
+2️⃣ Seizure Tracking
+3️⃣ Mental Health Screening
+4️⃣ Risk Forecasting
+5️⃣ Provider Scheduling
+6️⃣ Caregiver Coordination
+7️⃣ Refill Reminders
+8️⃣ Side Effect Monitoring
+9️⃣ Language Support
+
+Reply with a number to begin.`;
+
+async function sendMenu(to) {
+  return sendText(to, MENU);
 }
 
-async function sendYesNo(to, question) {
-  return sendTemplate(to, templates.yesNo, { "1": question });
-}
+// ─── Capability Maps ──────────────────────────────────────────────────────────
 
-async function sendNext(to, insight) {
-  return sendTemplate(to, templates.next, { "1": insight });
-}
-
-// ─── Session Helpers ──────────────────────────────────────────────────────────
-
-function getSession(phone) {
-  if (!sessions.has(phone)) {
-    sessions.set(phone, {
-      mode: "demo",
-      history: [],
-      isNew: true,
-      menuPage: 1,
-      currentCap: null,
-      capStep: 0,
-    });
-  }
-  return sessions.get(phone);
-}
-
-function resetSession(phone, mode = "demo") {
-  sessions.set(phone, {
-    mode,
-    history: [],
-    isNew: true,
-    menuPage: 1,
-    currentCap: null,
-    capStep: 0,
-  });
-}
-
-// ─── Capability Map ───────────────────────────────────────────────────────────
+const CAPABILITY_MAP = {
+  "1": "medication",
+  "2": "seizure",
+  "3": "mental",
+  "4": "risk",
+  "5": "schedule",
+  "6": "caregiver",
+  "7": "refill",
+  "8": "sideeffect",
+  "9": "language",
+};
 
 const CAPABILITIES = {
   medication:  "medication reminders and adherence tracking",
@@ -188,7 +88,7 @@ const CAPABILITIES = {
   caregiver:   "caregiver coordination with patient-controlled privacy",
   refill:      "medication refill reminders",
   sideeffect:  "side effect monitoring",
-  language:    "multilingual support — respond in any language to demonstrate",
+  language:    "multilingual support — respond in whatever language the user writes in to demonstrate",
 };
 
 const INSIGHTS = {
@@ -203,23 +103,49 @@ const INSIGHTS = {
   language:    "This reaches the 40% of low-income patients every other digital health tool leaves out.",
 };
 
-// ─── Gemini – Capability Demo ─────────────────────────────────────────────────
+// ─── System Prompts ───────────────────────────────────────────────────────────
+
+const BASE_RULES = `CORE RULES:
+- Maximum 2-3 sentences per SMS. Be concise.
+- Warm, casual tone. Never clinical or robotic.
+- Adapt completely to the user's communication style: if they write formally, match it; if they use slang or short texts, match that. If they write in another language, respond fully in that language with culturally native phrasing — not translated English. If they seem to have low literacy, simplify further without being condescending. Mirror their energy, vocabulary, and sentence length.
+- Never diagnose, prescribe, or give clinical recommendations.
+- Never shame or guilt around missed medications or poor habits.
+- For any emergency signal (seizure with injury, suicidal ideation), provide 988 or 911 immediately.
+- When simulating a log, confirm naturally: "Logged ✓"
+- When simulating scheduling, confirm with a specific detail: "Done — Dr. Patel has you Thursday at 2pm ✓"
+- Be transparent if asked: "I'm Simi, an AI working with your care team. Not a doctor, but I'll always loop in the right person."`;
 
 const CAP_SYSTEM = (cap) => `You are Simi, an AI SMS health companion for epilepsy patients, running a focused demo of one specific capability: ${CAPABILITIES[cap]}.
 
-RULES:
-- You are demoing this for investors and clinicians via WhatsApp. Keep it real and concise.
-- Maximum 2-3 sentences per message.
-- Simulate the interaction as a real patient would experience it.
-- Confirm logs naturally: "Logged ✓"
-- Confirm scheduling with specifics: "Done — Dr. Patel has you Thursday at 2pm ✓"
-- For language demo: respond in whatever language the user writes in.
-- After 3-4 exchanges signal you're done by ending your message with the exact string: [DEMO_COMPLETE]
+${BASE_RULES}
 
+You are demoing this for investors and clinicians via WhatsApp. Keep it real and concise.
+Simulate the interaction as a real patient would experience it.
+After 3-4 exchanges, signal you are done by ending your message with the exact string: [DEMO_COMPLETE]
 Do not break character. Make it feel like a real patient interaction.`;
 
-async function runCapabilityStep(phone, session, userMsg) {
+const FREEFORM_SYSTEM = `You are Simi, an AI SMS health companion for epilepsy patients, operating in full production mode.
+
+${BASE_RULES}
+
+You have the following capabilities — use them naturally based on what the user says:
+- Log medications (taken or missed), seizures, mood scores, side effects, and auras
+- Send caregiver alerts for escalations (simulate: "Alert sent to your caregiver ✓")
+- Schedule provider calls and generate visit summaries
+- Generate personalized risk alerts from adherence and lifestyle patterns
+- Run disguised PHQ-2, GAD-2, and C-SSRS screenings as casual check-ins
+- Send refill reminders when supply is running low
+- Track side effects specific to the patient's medication
+- Detect aura patterns by cross-referencing with seizure history
+
+Behave as you would with a real patient. Make this feel like a continuous, intelligent health relationship.`;
+
+// ─── Gemini Helpers ───────────────────────────────────────────────────────────
+
+async function runCapabilityStep(session, userMsg) {
   const { currentCap, history } = session;
+
   history.push({ role: "user", parts: [{ text: userMsg }] });
 
   const chat = model.startChat({
@@ -238,22 +164,9 @@ async function runCapabilityStep(phone, session, userMsg) {
   return { reply: cleanReply, isDone };
 }
 
-// ─── Freeform Gemini ──────────────────────────────────────────────────────────
-
-const FREEFORM_SYSTEM = `You are Simi, an AI SMS health companion for epilepsy patients in full production mode.
-
-RULES:
-- Maximum 2-3 sentences per SMS.
-- Warm, casual tone. Never clinical.
-- Adapt completely to the user's communication style: if they write formally, match it; if they use slang or short texts, match that. If they write in another language, respond fully in that language with culturally native phrasing — not translated English. If they seem to have low literacy, simplify further without being condescending. Mirror their energy, vocabulary, and sentence length.
-- Never diagnose or prescribe.
-- Confirm logs: "Logged ✓", scheduling: "Done — Dr. Patel has you Thursday at 2pm ✓"
-- For emergencies provide 988 or 911 immediately.
-
-Capabilities: medication logging, seizure tracking, PHQ/GAD/C-SSRS screening as casual check-ins, risk forecasting, provider scheduling, caregiver alerts, refill reminders, side effect monitoring.`;
-
-async function runFreeform(phone, session, userMsg) {
+async function runFreeform(session, userMsg) {
   const { history } = session;
+
   history.push({ role: "user", parts: [{ text: userMsg }] });
 
   const chat = model.startChat({
@@ -265,144 +178,104 @@ async function runFreeform(phone, session, userMsg) {
   const result = await chat.sendMessage(userMsg);
   const reply = result.response.text();
   history.push({ role: "model", parts: [{ text: reply }] });
+
   return reply;
 }
 
-// ─── Main Message Handler ─────────────────────────────────────────────────────
+// ─── Main Handler ─────────────────────────────────────────────────────────────
 
-async function handleMessage(phone, body) {
-  const session = getSession(phone);
+async function handleMessage(from, body) {
+  const session = getSession(from);
   const msg = body?.trim() ?? "";
-  const id = msg.toLowerCase();
+  const cmd = msg.toUpperCase();
 
-  // ── Admin commands ──
-  if (msg.toUpperCase() === "ADMIN RESET") {
-    resetSession(phone);
-    await sendText(phone, "Session reset ✓");
-    await sendMenu(phone, 1);
+  // Admin commands
+  if (cmd === "ADMIN RESET") {
+    resetSession(from);
+    await sendText(from, "Session reset ✓ — text anything to start fresh.");
+    await sendMenu(from);
     return;
   }
-  if (msg.toUpperCase() === "ADMIN FREEFORM") {
-    resetSession(phone, "freeform");
-    await sendText(phone, "Freeform mode ✓ — text anything.");
+  if (cmd === "ADMIN FREEFORM") {
+    resetSession(from, "freeform");
+    await sendText(from, "Freeform mode ✓ — text anything to begin.");
     return;
   }
-  if (msg.toUpperCase() === "ADMIN DEMO") {
-    resetSession(phone, "demo");
-    await sendMenu(phone, 1);
+  if (cmd === "ADMIN DEMO") {
+    resetSession(from, "demo");
+    await sendMenu(from);
     return;
   }
 
-  // ── Freeform mode ──
+  // Freeform mode
   if (session.mode === "freeform") {
-    const reply = await runFreeform(phone, session, msg);
-    await sendText(phone, reply);
+    const reply = await runFreeform(session, msg);
+    await sendText(from, reply);
     return;
   }
 
-  // ── Demo mode ──
-
-  // New user — show menu
+  // New user
   if (session.isNew) {
     session.isNew = false;
-    await sendMenu(phone, 1);
+    await sendMenu(from);
     return;
   }
 
-  // Menu navigation
-  if (id === "more_1" || id === "more options →") {
-    session.menuPage = 2;
-    await sendMenu(phone, 2);
-    return;
-  }
-  if (id === "more_2" || id === "more options →") {
-    session.menuPage = 3;
-    await sendMenu(phone, 3);
-    return;
-  }
-  if (id === "back" || id === "← back to start") {
-    session.menuPage = 1;
-    await sendMenu(phone, 1);
-    return;
-  }
-  if (id === "menu" || id === "🔁 try another feature") {
+  // Return to menu
+  if (msg === "0") {
     session.currentCap = null;
     session.history = [];
-    await sendMenu(phone, 1);
-    return;
-  }
-  if (id === "freeform" || id === "💬 ask simi anything") {
-    session.mode = "freeform";
-    await sendText(phone, "You're now in free conversation mode. Ask me anything or describe a situation — I'll respond as I would with a real patient.");
+    await sendMenu(from);
     return;
   }
 
-  // Capability selected from menu
-  if (CAPABILITIES[id]) {
-    session.currentCap = id;
+  // Capability selected
+  const capId = CAPABILITY_MAP[msg];
+  if (capId) {
+    session.currentCap = capId;
     session.history = [];
-    session.capStep = 0;
-
-    // Kick off the demo with first AI message
-    const { reply, isDone } = await runCapabilityStep(phone, session, `Start the ${CAPABILITIES[id]} demo. Send your opening message as Simi.`);
-    await sendText(phone, reply);
-
-    // Use yes/no buttons if appropriate for this capability
-    const usesYesNo = ["medication", "seizure", "mental", "refill", "sideeffect"].includes(id);
-    if (usesYesNo && !isDone) {
-      await sendYesNo(phone, "How would you like to respond?");
+    const { reply, isDone } = await runCapabilityStep(session, `Start the ${CAPABILITIES[capId]} demo. Send your opening message as Simi.`);
+    await sendText(from, reply);
+    if (isDone) {
+      await sendText(from, `💡 ${INSIGHTS[capId]}\n\nReply 0 to explore another feature or keep chatting.`);
+      session.currentCap = null;
     }
     return;
   }
 
   // Mid-capability conversation
   if (session.currentCap) {
-    const { reply, isDone } = await runCapabilityStep(phone, session, msg);
-    await sendText(phone, reply);
-
+    const { reply, isDone } = await runCapabilityStep(session, msg);
+    await sendText(from, reply);
     if (isDone) {
-      const insight = INSIGHTS[session.currentCap];
-      await sendNext(phone, `💡 ${insight}\n\nWhat would you like to do next?`);
+      await sendText(from, `💡 ${INSIGHTS[session.currentCap]}\n\nReply 0 to explore another feature or keep chatting.`);
       session.currentCap = null;
-    } else {
-      const usesYesNo = ["medication", "seizure", "mental", "refill", "sideeffect"].includes(session.currentCap);
-      if (usesYesNo) {
-        await sendYesNo(phone, "How would you like to respond?");
-      }
     }
     return;
   }
 
-  // Fallback — show menu
-  await sendMenu(phone, session.menuPage || 1);
+  // Fallback
+  await sendMenu(from);
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
 app.post("/sms", async (req, res) => {
-  // Acknowledge Twilio immediately
   res.status(200).send("<Response></Response>");
 
   const from = req.body.From?.replace("whatsapp:", "");
-  const body = req.body.Body ?? req.body.ButtonPayload ?? "";
+  const body = req.body.Body?.trim();
 
   try {
     await handleMessage(from, body);
   } catch (err) {
     console.error("Handler error:", err);
     try {
-      await sendText(from, "Something went wrong — try texting ADMIN RESET to start fresh.");
+      await sendText(from, "Something went wrong — text ADMIN RESET to start fresh.");
     } catch (_) {}
   }
 });
 
 app.get("/", (_, res) => res.send("SimisAI running ✓"));
 
-// ─── Start ────────────────────────────────────────────────────────────────────
-
-async function start() {
-  await initTemplates();
-  app.listen(3000, () => console.log("SimisAI running on port 3000 ✓"));
-}
-
-start().catch(console.error);
+app.listen(process.env.PORT || 3000, () => console.log("SimisAI running ✓"));
