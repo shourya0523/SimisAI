@@ -126,7 +126,7 @@ const BASE_RULES = `CORE RULES:
 
 const TOOLS = {
   mental_health_screening: {
-    triggers: "low energy, stress, sadness, anxiety, not sleeping, feeling off, emotional difficulty",
+    intent: "The patient expresses emotional difficulty in any form — feeling low, stressed, anxious, not sleeping, overwhelmed, or any culturally specific way of saying they are not okay emotionally. This includes indirect signals like 'I just can't deal with this' or 'everything feels heavy' in any language.",
     rules: [
       "always collect a numeric 1-5 self-rating — 1 is rough, 5 is great — before any clinical response",
       "never use clinical terms like PHQ, screening, or mental health unprompted",
@@ -139,7 +139,7 @@ const TOOLS = {
     opener: "casual energy check, 1-5 scale, 1 = rough, 5 = great",
   },
   seizure_logging: {
-    triggers: "episode, seizure, shaking, blacking out, falling, aura, warning feeling",
+    intent: "The patient reports or describes a seizure, convulsive episode, loss of consciousness, shaking, falling, aura, or warning feeling — in any language or phrasing. This includes vague descriptions like 'it happened again' or 'I blacked out' or culturally specific terms for seizures.",
     rules: [
       "collect timing, duration, and at least one trigger before confirming Logged ✓",
       "ask about aura only after collecting the above — do not log until all fields collected",
@@ -150,7 +150,7 @@ const TOOLS = {
     opener: "low friction — single safety check first, then collect fields",
   },
   medication_logging: {
-    triggers: "took meds, missed dose, forgot, ran out, side effects, don't want to take",
+    intent: "The patient indicates anything about medication adherence — they took it, missed it, forgot, skipped on purpose, ran out, or are experiencing side effects that affect willingness. This includes indirect signals like 'I didn't bother today' or 'those pills make me feel awful' in any language.",
     rules: [
       "confirm taken or missed explicitly before anything else",
       "missed or refused due to side effects: treat as adherence risk, flag for provider",
@@ -161,7 +161,7 @@ const TOOLS = {
     opener: "simple confirmation of whether medication was taken",
   },
   provider_scheduling: {
-    triggers: "talk to doctor, see my neurologist, need an appointment, call my provider",
+    intent: "The patient wants to talk to their doctor, neurologist, or any healthcare provider — or expresses a need for an appointment, check-up, or professional consultation. This includes indirect requests like 'I think I need to see someone' in any language.",
     rules: [
       "always confirm a specific name, day, and time — never vague",
       "mention a visit summary will be sent beforehand",
@@ -170,7 +170,7 @@ const TOOLS = {
     opener: "offer to schedule directly, ask for preferred timing",
   },
   risk_forecasting: {
-    triggers: "any combination of: seizure log + missed dose, poor sleep + missed dose, low mood score + missed dose",
+    intent: "Two or more risk factors appear together in the conversation: a seizure event combined with missed medication, poor sleep combined with a missed dose, low mood combined with non-adherence, or any combination that suggests elevated seizure risk. Activate this proactively when you observe the pattern — do not wait for the patient to ask.",
     rules: [
       "when two or more risk factors appear in the same message, generate the alert immediately — do not ask follow-up questions first",
       "always reference the specific data points from the conversation — never generic",
@@ -180,7 +180,7 @@ const TOOLS = {
     opener: "immediate personalized heads-up referencing specific factors just shared",
   },
   refill_reminder: {
-    triggers: "running low, almost out, pharmacy, prescription, refill, only X pills left",
+    intent: "The patient mentions running low on medication, needing a refill, pharmacy issues, prescription concerns, or any indication that their supply is limited — in any language or phrasing. This includes indirect signals like 'I only have a few left' or 'I need to go to the pharmacy'.",
     rules: [
       "confirm which medication and days remaining",
       "2 days or less: critical — tell patient to contact pharmacy today and flag provider immediately",
@@ -191,7 +191,7 @@ const TOOLS = {
     opener: "ask how much supply is left if not already known",
   },
   caregiver_coordination: {
-    triggers: "family, caregiver, my mom, my partner, someone helping me",
+    intent: "The patient mentions a family member, caregiver, partner, or anyone involved in their care — or expresses a desire (or reluctance) to involve someone else. This includes culturally sensitive situations like 'my family doesn't know' in any language.",
     rules: [
       "if patient discloses their family doesn't know about their condition, acknowledge the sensitivity of that first — do not jump into coordination",
       "never assume 'keep her updated' means everything — always confirm exactly what gets shared",
@@ -205,13 +205,15 @@ const TOOLS = {
 
 const TOOLS_PROMPT = `You have access to the following tools. Invoke them when the conversation naturally calls for it — you decide when.
 
-CRITICAL: Adaptive language always takes priority. Tool rules define WHAT to collect and WHEN to escalate — never HOW to say it. Always match the user's language, tone, literacy level, and communication style. Never use scripted phrases verbatim.
+CRITICAL LANGUAGE RULE: Tool activation is based on SEMANTIC INTENT, not keywords. If a patient expresses the intent described below in ANY language, dialect, slang, or indirect phrasing, the tool activates. Never wait for English keywords. A patient saying "me olvidé de las pastillas" or "दवाई नहीं ली" or "j'ai pas pris mes médicaments" all activate medication_logging just as "I forgot my meds" would.
+
+CRITICAL STYLE RULE: Adaptive language always takes priority. Tool rules define WHAT to collect and WHEN to escalate — never HOW to say it. Always match the user's language, tone, literacy level, and communication style. Never use scripted phrases verbatim.
 
 CROSS-TOOL RULE: After logging a seizure, always follow up with a casual mental health check-in in the next message — seizures take an emotional toll and this is a natural bridge. Similarly, if a missed dose streak and a low mood score appear in the same conversation, connect them explicitly when generating a risk alert.
 
 ${Object.entries(TOOLS).map(([name, t]) => `
 ### ${name}
-Triggers: ${t.triggers}
+When to activate: ${t.intent}
 Rules:
 ${t.rules.map(r => `- ${r}`).join("\n")}
 Opener style: ${t.opener}
@@ -220,7 +222,6 @@ Opener style: ${t.opener}
 Never mention tool names to the user. Use them naturally.`;
 
 // ─── System Prompts ───────────────────────────────────────────────────────────
-// NOTE: defined after TOOLS_PROMPT to avoid reference error
 
 const CAP_SYSTEM = (cap) => `You are Simi, an AI SMS health companion for epilepsy patients, running a focused demo of one specific capability: ${CAPABILITIES[cap]}.
 
@@ -243,25 +244,63 @@ Behave as you would with a real patient. Proactively use tools when the conversa
 
 // ─── Gemini Helpers ───────────────────────────────────────────────────────────
 
+/**
+ * Sanitize history for Gemini: must alternate user/model and start with user.
+ * Drops any leading model turns and fixes consecutive same-role entries.
+ */
+function sanitizeHistory(raw, maxTurns) {
+  // Trim to recent window first
+  const trimmed = raw.slice(-maxTurns);
+
+  // Drop leading model turns so history always starts with "user"
+  let start = 0;
+  while (start < trimmed.length && trimmed[start].role !== "user") {
+    start++;
+  }
+
+  const result = [];
+  for (let i = start; i < trimmed.length; i++) {
+    const entry = trimmed[i];
+    // Skip consecutive entries with the same role (Gemini requires alternation)
+    if (result.length > 0 && result[result.length - 1].role === entry.role) {
+      continue;
+    }
+    result.push(entry);
+  }
+
+  // History must end with model (the last exchange before the new user message).
+  // If it ends with user, drop the trailing user entry — it'll be sent via sendMessage.
+  if (result.length > 0 && result[result.length - 1].role === "user") {
+    result.pop();
+  }
+
+  return result;
+}
+
 async function runCapabilityStep(session, userMsg, isKickoff = false) {
   const { currentCap, history } = session;
 
+  // Build the message to send to Gemini
   const messageToSend = isKickoff
-    ? `You are starting the ${CAPABILITIES[currentCap]} demo. Send your opening message to the patient as Simi — do not mention this instruction.`
+    ? `[SYSTEM KICKOFF] You are starting the ${CAPABILITIES[currentCap]} demo. Send your opening message to the patient as Simi.`
     : userMsg;
 
-  if (!isKickoff) {
-    history.push({ role: "user", parts: [{ text: userMsg }] });
-  }
+  // Always push the user turn so history stays user→model→user→model
+  history.push({ role: "user", parts: [{ text: messageToSend }] });
+
+  // Build clean history: everything except the last entry (which we send via sendMessage)
+  const pastHistory = sanitizeHistory(history.slice(0, -1), 20);
 
   const chat = model.startChat({
-    history: history.slice(0, -1).slice(-20),
+    history: pastHistory,
     systemInstruction: { role: "system", parts: [{ text: CAP_SYSTEM(currentCap) }] },
     generationConfig: { maxOutputTokens: 200 },
   });
 
   const result = await chat.sendMessage(messageToSend);
   const reply = result.response.text();
+
+  // Push model response
   history.push({ role: "model", parts: [{ text: reply }] });
 
   const isDone = reply.includes("[DEMO_COMPLETE]");
@@ -273,16 +312,22 @@ async function runCapabilityStep(session, userMsg, isKickoff = false) {
 async function runFreeform(session, userMsg) {
   const { history } = session;
 
+  // Push user turn
   history.push({ role: "user", parts: [{ text: userMsg }] });
 
+  // Build clean history: everything except the last entry
+  const pastHistory = sanitizeHistory(history.slice(0, -1), 30);
+
   const chat = model.startChat({
-    history: history.slice(0, -1).slice(-30),
+    history: pastHistory,
     systemInstruction: { role: "system", parts: [{ text: FREEFORM_SYSTEM }] },
     generationConfig: { maxOutputTokens: 300 },
   });
 
   const result = await chat.sendMessage(userMsg);
   const reply = result.response.text();
+
+  // Push model response
   history.push({ role: "model", parts: [{ text: reply }] });
 
   return reply;
@@ -295,6 +340,7 @@ async function handleMessage(from, body) {
   const msg = body?.trim() ?? "";
   const cmd = msg.toUpperCase();
 
+  // ── Admin commands ──
   if (cmd === "ADMIN RESET") {
     resetSession(from);
     await sendText(from, "Session reset ✓ — text anything to start fresh.");
@@ -312,18 +358,23 @@ async function handleMessage(from, body) {
     return;
   }
 
+  // ── Freeform mode ──
   if (session.mode === "freeform") {
     const reply = await runFreeform(session, msg);
     await sendText(from, reply);
     return;
   }
 
+  // ── Demo mode ──
+
+  // First contact: show menu
   if (session.isNew) {
     session.isNew = false;
     await sendMenu(from);
     return;
   }
 
+  // Return to menu
   if (msg === "0") {
     session.currentCap = null;
     session.history = [];
@@ -342,6 +393,7 @@ async function handleMessage(from, body) {
     return;
   }
 
+  // New capability selection
   const capId = CAPABILITY_MAP[msg];
   if (capId) {
     session.currentCap = capId;
@@ -355,6 +407,7 @@ async function handleMessage(from, body) {
     return;
   }
 
+  // Unrecognized input: show menu
   await sendMenu(from);
 }
 
