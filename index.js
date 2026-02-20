@@ -435,21 +435,58 @@ async function handleMessage(from, body) {
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
 app.post("/sms", async (req, res) => {
-  res.status(200).send("<Response></Response>");
-
-  const from = req.body.From?.replace("whatsapp:", "");
-  const body = req.body.Body?.trim();
-
+  // Respond to Twilio immediately — never let this fail
   try {
-    await handleMessage(from, body);
-  } catch (err) {
-    console.error("Handler error:", err);
-    try {
-      await sendText(from, "Something went wrong — text ADMIN RESET to start fresh.");
-    } catch (_) {}
+    res.set("Content-Type", "text/xml");
+    res.status(200).send("<Response></Response>");
+  } catch (e) {
+    console.error("Failed to send Twilio ack:", e);
   }
+
+  const from = req.body?.From?.replace("whatsapp:", "");
+  const body = req.body?.Body?.trim();
+
+  if (!from) {
+    console.error("Missing 'From' in request body");
+    return;
+  }
+
+  // Process async — errors here won't affect Twilio's response
+  setImmediate(async () => {
+    try {
+      await handleMessage(from, body);
+    } catch (err) {
+      console.error("Handler error:", err?.message || err);
+      try {
+        await sendText(from, "Something went wrong — text ADMIN RESET to start fresh.");
+      } catch (_) {}
+    }
+  });
 });
 
 app.get("/", (_, res) => res.send("SimisAI running ✓"));
+
+app.get("/qr", (_, res) => {
+  const waLink = "https://wa.me/14155238886?text=join%20find-hold";
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(waLink)}`;
+  res.send(`
+    <!DOCTYPE html>
+    <html><head><title>SimisAI Demo</title>
+    <style>
+      body { font-family: system-ui; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #0f172a; color: #f8fafc; }
+      h1 { font-size: 1.8rem; margin-bottom: 0.25rem; }
+      p { color: #94a3b8; margin-bottom: 1.5rem; font-size: 1.1rem; }
+      img { border-radius: 12px; border: 4px solid #334155; }
+      .link { margin-top: 1rem; color: #38bdf8; text-decoration: none; font-size: 0.9rem; }
+    </style></head>
+    <body>
+      <h1>Try SimisAI</h1>
+      <p>Scan to start the demo on WhatsApp</p>
+      <img src="${qrUrl}" alt="QR Code" width="300" height="300" />
+      <a class="link" href="${waLink}">Or tap here on mobile</a>
+    </body></html>
+  `);
+});
+
 
 app.listen(process.env.PORT || 3000, () => console.log("SimisAI running ✓"));
