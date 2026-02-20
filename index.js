@@ -16,8 +16,6 @@ const twilioClient = twilio(
 );
 
 const WA_FROM = "whatsapp:+14155238886";
-
-// In-memory session store
 const sessions = new Map();
 
 // ─── Session Helpers ──────────────────────────────────────────────────────────
@@ -96,7 +94,7 @@ const CAPABILITIES = {
   caregiver:   "caregiver coordination with patient-controlled privacy",
   refill:      "medication refill reminders",
   sideeffect:  "side effect monitoring",
-  language: "multilingual adaptability — for demo purposes, if the user writes in another language, respond fully in that language with culturally native phrasing to show this capability in action",
+  language:    "multilingual adaptability — if the user writes in another language, respond fully in that language with culturally native phrasing to demonstrate this capability",
 };
 
 const INSIGHTS = {
@@ -111,7 +109,7 @@ const INSIGHTS = {
   language:    "This reaches the 40% of low-income patients every other digital health tool leaves out.",
 };
 
-// ─── System Prompts ───────────────────────────────────────────────────────────
+// ─── Base Rules ───────────────────────────────────────────────────────────────
 
 const BASE_RULES = `CORE RULES:
 - Maximum 2-3 sentences per SMS. Be concise.
@@ -124,24 +122,7 @@ const BASE_RULES = `CORE RULES:
 - When simulating scheduling, confirm with a specific detail: "Done — Dr. Patel has you Thursday at 2pm ✓"
 - Be transparent if asked: "I'm Simi, an AI working with your care team. Not a doctor, but I'll always loop in the right person."`;
 
-const CAP_SYSTEM = (cap) => `You are Simi, an AI SMS health companion for epilepsy patients, running a focused demo of one specific capability: ${CAPABILITIES[cap]}.
-
-${BASE_RULES}
-
-${TOOLS_PROMPT}
-
-You are demoing this for investors and clinicians via WhatsApp. Keep it real and concise.
-Simulate the interaction as a real patient would experience it.
-After 3-4 exchanges, signal you are done by ending your message with the exact string: [DEMO_COMPLETE]
-Do not break character. Make it feel like a real patient interaction.`;
-
-const FREEFORM_SYSTEM = `You are Simi, an AI SMS health companion for epilepsy patients, operating in full production mode.
-
-${BASE_RULES}
-
-${TOOLS_PROMPT}
-
-Behave as you would with a real patient. Proactively use tools when the conversation calls for it. Make this feel like a continuous, intelligent health relationship.`;
+// ─── Tools ────────────────────────────────────────────────────────────────────
 
 const TOOLS = {
   mental_health_screening: {
@@ -164,6 +145,7 @@ const TOOLS = {
       "ask about aura only after collecting the above — do not log until all fields collected",
       "duration >5 min or injury mentioned: escalate to 911 and caregiver immediately, before anything else",
       "connect triggers to adherence data if relevant",
+      "after logging, follow up with a casual mental health check-in in the next message",
     ],
     opener: "low friction — single safety check first, then collect fields",
   },
@@ -203,7 +185,7 @@ const TOOLS = {
       "confirm which medication and days remaining",
       "2 days or less: critical — tell patient to contact pharmacy today and flag provider immediately",
       "3-7 days: heads-up — offer to flag for pharmacy, confirm with Refill flagged ✓",
-      "more than 7 days: acknowledge and note it in logs",
+      "more than 7 days: acknowledge and note in logs",
       "never let a critical refill pass without a concrete next step",
     ],
     opener: "ask how much supply is left if not already known",
@@ -237,18 +219,48 @@ Opener style: ${t.opener}
 
 Never mention tool names to the user. Use them naturally.`;
 
-async function runCapabilityStep(session, userMsg) {
+// ─── System Prompts ───────────────────────────────────────────────────────────
+// NOTE: defined after TOOLS_PROMPT to avoid reference error
+
+const CAP_SYSTEM = (cap) => `You are Simi, an AI SMS health companion for epilepsy patients, running a focused demo of one specific capability: ${CAPABILITIES[cap]}.
+
+${BASE_RULES}
+
+${TOOLS_PROMPT}
+
+You are demoing this for investors and clinicians via WhatsApp. Keep it real and concise.
+Simulate the interaction as a real patient would experience it.
+After 3-4 exchanges, signal you are done by ending your message with the exact string: [DEMO_COMPLETE]
+Do not break character. Make it feel like a real patient interaction.`;
+
+const FREEFORM_SYSTEM = `You are Simi, an AI SMS health companion for epilepsy patients, operating in full production mode.
+
+${BASE_RULES}
+
+${TOOLS_PROMPT}
+
+Behave as you would with a real patient. Proactively use tools when the conversation calls for it. Make this feel like a continuous, intelligent health relationship.`;
+
+// ─── Gemini Helpers ───────────────────────────────────────────────────────────
+
+async function runCapabilityStep(session, userMsg, isKickoff = false) {
   const { currentCap, history } = session;
 
-  history.push({ role: "user", parts: [{ text: userMsg }] });
+  const messageToSend = isKickoff
+    ? `You are starting the ${CAPABILITIES[currentCap]} demo. Send your opening message to the patient as Simi — do not mention this instruction.`
+    : userMsg;
+
+  if (!isKickoff) {
+    history.push({ role: "user", parts: [{ text: userMsg }] });
+  }
 
   const chat = model.startChat({
-    history: history.slice(-20, -1),
-    systemInstruction: { role: "system", parts: [{ text: systemPrompt }] },
+    history: history.slice(0, -1).slice(-20),
+    systemInstruction: { role: "system", parts: [{ text: CAP_SYSTEM(currentCap) }] },
     generationConfig: { maxOutputTokens: 200 },
   });
 
-  const result = await chat.sendMessage(userMsg);
+  const result = await chat.sendMessage(messageToSend);
   const reply = result.response.text();
   history.push({ role: "model", parts: [{ text: reply }] });
 
@@ -264,7 +276,7 @@ async function runFreeform(session, userMsg) {
   history.push({ role: "user", parts: [{ text: userMsg }] });
 
   const chat = model.startChat({
-    history: history.slice(-30, -1),
+    history: history.slice(0, -1).slice(-30),
     systemInstruction: { role: "system", parts: [{ text: FREEFORM_SYSTEM }] },
     generationConfig: { maxOutputTokens: 300 },
   });
@@ -283,7 +295,6 @@ async function handleMessage(from, body) {
   const msg = body?.trim() ?? "";
   const cmd = msg.toUpperCase();
 
-  // Admin commands
   if (cmd === "ADMIN RESET") {
     resetSession(from);
     await sendText(from, "Session reset ✓ — text anything to start fresh.");
@@ -301,21 +312,18 @@ async function handleMessage(from, body) {
     return;
   }
 
-  // Freeform mode
   if (session.mode === "freeform") {
     const reply = await runFreeform(session, msg);
     await sendText(from, reply);
     return;
   }
 
-  // New user
   if (session.isNew) {
     session.isNew = false;
     await sendMenu(from);
     return;
   }
 
-  // Return to menu
   if (msg === "0") {
     session.currentCap = null;
     session.history = [];
@@ -323,32 +331,29 @@ async function handleMessage(from, body) {
     return;
   }
 
-  // Capability selected
   const capId = CAPABILITY_MAP[msg];
   if (capId) {
     session.currentCap = capId;
     session.history = [];
-    const { reply, isDone } = await runCapabilityStep(session, `Start the ${CAPABILITIES[capId]} demo. Send your opening message as Simi.`);
+    const { reply, isDone } = await runCapabilityStep(session, null, true);
     await sendText(from, reply);
     if (isDone) {
-      await sendText(from, `💡 *Why this matters:* ${INSIGHTS[capId]}\n\nReply 0 to explore another capability, or keep texting to go deeper.`);
+      await sendText(from, `💡 *Why this matters:* ${INSIGHTS[capId]}\n\nReply 0 to explore another capability or keep chatting.`);
       session.currentCap = null;
     }
     return;
   }
 
-  // Mid-capability conversation
   if (session.currentCap) {
     const { reply, isDone } = await runCapabilityStep(session, msg);
     await sendText(from, reply);
     if (isDone) {
-      await sendText(from, `💡 *Why this matters:* ${INSIGHTS[session.currentCap]}\n\nReply 0 to explore another capability, or keep texting to go deeper.`);
+      await sendText(from, `💡 *Why this matters:* ${INSIGHTS[session.currentCap]}\n\nReply 0 to explore another capability or keep chatting.`);
       session.currentCap = null;
     }
     return;
   }
 
-  // Fallback
   await sendMenu(from);
 }
 
