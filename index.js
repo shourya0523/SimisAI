@@ -331,6 +331,17 @@ async function handleMessage(from, body) {
     return;
   }
 
+  // Mid-capability conversation takes priority over menu navigation
+  if (session.currentCap) {
+    const { reply, isDone } = await runCapabilityStep(session, msg);
+    await sendText(from, reply);
+    if (isDone) {
+      await sendText(from, `💡 *Why this matters:* ${INSIGHTS[session.currentCap]}\n\nReply 0 to explore another capability or keep chatting.`);
+      session.currentCap = null;
+    }
+    return;
+  }
+
   const capId = CAPABILITY_MAP[msg];
   if (capId) {
     session.currentCap = capId;
@@ -339,16 +350,6 @@ async function handleMessage(from, body) {
     await sendText(from, reply);
     if (isDone) {
       await sendText(from, `💡 *Why this matters:* ${INSIGHTS[capId]}\n\nReply 0 to explore another capability or keep chatting.`);
-      session.currentCap = null;
-    }
-    return;
-  }
-
-  if (session.currentCap) {
-    const { reply, isDone } = await runCapabilityStep(session, msg);
-    await sendText(from, reply);
-    if (isDone) {
-      await sendText(from, `💡 *Why this matters:* ${INSIGHTS[session.currentCap]}\n\nReply 0 to explore another capability or keep chatting.`);
       session.currentCap = null;
     }
     return;
