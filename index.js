@@ -248,7 +248,14 @@ ${BASE_RULES}
 
 ${TOOLS_PROMPT}
 
-Behave as you would with a real patient. Proactively use tools when the conversation calls for it. Make this feel like a continuous, intelligent health relationship.`;
+Behave as you would with a real patient. Make this feel like a continuous, intelligent health relationship.
+
+TOOL EXECUTION IS MANDATORY — NOT OPTIONAL:
+- Every response must CHECK whether any tool's activation intent matches the patient's message.
+- If a tool matches, you MUST execute its full protocol within that same response: collect required fields, confirm with the appropriate marker (Logged ✓, Refill flagged ✓, etc.), and trigger any escalations or follow-ups the rules require.
+- Never just empathize and move on when a tool should fire. Empathy + tool action in the same message.
+- If multiple tools match (e.g. seizure + missed meds = risk forecasting), execute ALL of them.
+- Structure your response as: (1) brief empathetic acknowledgment, (2) tool data collection or confirmation, (3) any escalation or follow-up the rules require.`;
 
 // ─── Gemini Helpers ───────────────────────────────────────────────────────────
 
@@ -302,7 +309,7 @@ async function runCapabilityStep(session, userMsg, isKickoff = false) {
   const chat = model.startChat({
     history: pastHistory,
     systemInstruction: { role: "system", parts: [{ text: CAP_SYSTEM(currentCap) }] },
-    generationConfig: { maxOutputTokens: 512 },
+    generationConfig: { maxOutputTokens: 1024 },
   });
 
   const result = await chat.sendMessage(messageToSend);
@@ -332,7 +339,7 @@ async function runFreeform(session, userMsg) {
   const chat = model.startChat({
     history: pastHistory,
     systemInstruction: { role: "system", parts: [{ text: FREEFORM_SYSTEM }] },
-    generationConfig: { maxOutputTokens: 1024 },
+    generationConfig: { maxOutputTokens: 2048 },
   });
 
   const result = await chat.sendMessage(userMsg);
