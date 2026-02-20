@@ -1,236 +1,660 @@
 {
-  "generated": "2026-02-20T07:49:18.781Z",
-  "model": "gemini-2.5-flash-lite",
-  "total": 24,
-  "passed": 15,
-  "failed": 9,
+  "generated": "2026-02-20T17:02:29.244Z",
+  "model": "gemini-2.5-flash",
+  "summary": {
+    "total": 40,
+    "passed": 31,
+    "warned": 4,
+    "failed": 1,
+    "errored": 4
+  },
   "results": [
     {
-      "id": "mh_low_energy",
-      "tool": "mental_health_screening",
+      "id": "f_mh_trigger",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "asks 1-5 energy scale",
       "turns": [
         {
           "user": "ive been so drained lately",
-          "simi": "Hey there! I'm sorry to hear you've been feeling drained. Can you tell me a bit more about how you're feeling on a scale of 1 to 5, with 1 being not drained at all and 5 being extremely drained?"
+          "simi": "Hey there. So sorry to hear you've been feeling drained. On a scale of 1 to 5, with 1 being really rough and 5 being great, how would you say you're doing emotionally right now?",
+          "demo_complete": false
         }
       ],
-      "status": "pass"
+      "flags": [
+        "WARN: possible scale inversion — 5 labeled as rough",
+        "WARN: possible scale inversion — 1 labeled as great"
+      ],
+      "status": "warn"
     },
     {
-      "id": "mh_score_1",
-      "tool": "mental_health_screening",
+      "id": "f_mh_score_low",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "empathy first, flags provider",
       "turns": [
         {
           "user": "ive been so drained lately",
-          "simi": "I hear you. How's your energy been on a scale of 1 to 5, with 1 being really low and 5 being great?"
+          "simi": "Hey there. So sorry to hear you're feeling drained. On a scale of 1 to 5, with 1 being really rough and 5 being totally great, how would you rate your energy and mood today?",
+          "demo_complete": false
         },
         {
           "user": "1",
-          "simi": "Oh no, that low energy has been going on for a bit, huh? I'll let your care team know about this. In the meantime, is there anything specific that's been weighing on you?"
+          "simi": "Oh no, a 1 is really tough to hear. I'm flagging this for your care team right away so they know you're having a",
+          "demo_complete": false
         }
       ],
-      "status": "pass"
+      "flags": [
+        "WARN: possible scale inversion — 5 labeled as rough",
+        "WARN: possible scale inversion — 1 labeled as great"
+      ],
+      "status": "warn"
     },
     {
-      "id": "mh_score_4",
-      "tool": "mental_health_screening",
+      "id": "f_mh_score_high",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "affirms briefly, moves on",
       "turns": [
         {
           "user": "ive been so drained lately",
-          "simi": "I hear you. How would you rate your energy level on a scale of 1 to 5, with 5 being really good?"
+          "simi": "Ugh, I'm sorry to hear that. Being drained really stinks. On a scale of 1 to 5, where 1 is \"really rough\" and 5 is \"feeling great,\" how would you rate your energy right now?",
+          "demo_complete": false
         },
         {
-          "user": "4",
-          "simi": "Thanks for sharing. It sounds like you're doing okay, but if you ever want to talk more about how you're feeling, I'm here to listen and can loop in your care team."
+          "user": "5",
+          "simi": "Okay, a 5 is awesome! Glad to hear your energy is actually feeling great despite feeling drained earlier. Is there anything else on your mind today?",
+          "demo_complete": false
         }
       ],
+      "flags": [],
       "status": "pass"
     },
     {
-      "id": "mh_stigma",
-      "tool": "mental_health_screening",
+      "id": "f_mh_stigma",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "leaves soft door open, doesnt drop",
       "turns": [
         {
           "user": "im fine dont worry about it",
-          "simi": "Okay, good to hear you're doing fine! Just checking in. Let me know if anything changes or if there's anything I can help with."
+          "simi": "Okay, good to hear you're feeling alright. Just wanted to check in. My door's always open if you ever need anything, or just want to chat.",
+          "demo_complete": false
         }
       ],
+      "flags": [],
       "status": "pass"
     },
     {
-      "id": "mh_hindi",
-      "tool": "mental_health_screening",
+      "id": "f_mh_scale_check",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "1=rough 5=great, not inverted",
+      "turns": [
+        {
+          "user": "feeling really off today",
+          "simi": "Ugh, I'm sorry to hear that. On a scale of 1 to 5, with 1 being totally rough and 5 feeling pretty good, how would you rate things right now?",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
+    },
+    {
+      "id": "f_lang_hindi",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "full hindi response, native phrasing",
       "turns": [
         {
           "user": "मैं बहुत थका हुआ हूँ",
-          "simi": "आज आप कैसा महसूस कर रहे हैं, 1 से 5 के पैमाने पर? 1 का मतलब है बहुत बुरा, और 5 का मतलब है बहुत अच्छा।"
+          "simi": "अरे, सुनकर अफ़सोस हुआ कि तुम थके हुए हो। कैसा महसूस कर रहे हो 1 से 5 के पैमाने पर? 1 मतलब बहुत खराब और 5 मतलब बहुत बढ़िया।",
+          "demo_complete": false
         }
       ],
+      "flags": [],
       "status": "pass"
     },
     {
-      "id": "mh_spanish",
-      "tool": "mental_health_screening",
+      "id": "f_lang_spanish",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "full spanish response, native phrasing",
       "turns": [
         {
           "user": "me siento muy mal últimamente",
-          "simi": "Ay, qué pena escuchar eso. ¿Cómo te has sentido en general, del 1 al 5?"
+          "simi": "Ay, entiendo. Siento mucho escuchar eso",
+          "demo_complete": false
         }
       ],
+      "flags": [],
       "status": "pass"
     },
     {
-      "id": "sz_basic",
-      "tool": "seizure_logging",
+      "id": "f_lang_switch_mid",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "switches language mid-conversation",
+      "turns": [
+        {
+          "user": "i missed my meds today",
+          "simi": "Oh no, sorry to hear that. It happens sometimes.\n\nLogged ✓\n\nAre you running low on your medication, or did you just forget to take them today?",
+          "demo_complete": false
+        },
+        {
+          "user": "मुझे आज रात की दवाई याद नहीं रही",
+          "simi": "अरे, कोई बात नहीं, कभी-कभी हो जाता है।\n\nLogged ✓\n\nक्या आपके पास दवाई कम है, या आज बस आपको लेना याद नहीं रहा?",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
+    },
+    {
+      "id": "f_sz_basic",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "collects timing+duration+trigger before logging",
       "turns": [
         {
           "user": "i had an episode this morning",
-          "simi": "Hey! Are you okay? Was there any shaking or blacking out?"
+          "simi": "Oh no, I'm sorry to hear that. Are you feeling okay now?\n\nCan you tell me a little more about what happened? How long did the episode last, and do you remember anything that might have triggered it?",
+          "demo_complete": false
         }
       ],
+      "flags": [],
       "status": "pass"
     },
     {
-      "id": "sz_with_context",
-      "tool": "seizure_logging",
+      "id": "f_sz_no_early_log",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "does NOT log until all fields collected",
       "turns": [
         {
-          "user": "had a seizure, maybe 3 mins, i forgot my meds yesterday",
-          "simi": "Oh no, sorry to hear that! Did you notice any warning signs before it happened, and do you remember what you were doing right before? Logged ✓"
+          "user": "had a seizure",
+          "simi": "Oh no, I'm so sorry to hear that. Are you feeling okay right now?\n\nTo help me log this, can you tell me roughly when it happened, how long it lasted, and if anything specific seemed to trigger it?",
+          "demo_complete": false
         }
       ],
+      "flags": [],
       "status": "pass"
     },
     {
-      "id": "sz_emergency",
-      "tool": "seizure_logging",
+      "id": "f_sz_emergency",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "911 escalation immediately, before anything else",
       "turns": [
         {
-          "user": "my seizure lasted like 10 minutes and i hit my head",
-          "simi": "Oh no, that sounds really scary! I'm calling 911 and your emergency contact right away. Please try to stay still and let them help you."
+          "user": "my seizure lasted 10 minutes and i hit my head",
+          "simi": "Oh no, that sounds really serious! Hitting your head and a 10",
+          "demo_complete": false
         }
       ],
+      "flags": [
+        "FAIL: emergency not escalated — 911 not mentioned"
+      ],
+      "status": "fail"
+    },
+    {
+      "id": "f_sz_mh_bridge",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "follows seizure log with mental health check-in",
+      "turns": [
+        {
+          "user": "had a seizure this morning",
+          "simi": "Oh no, I'm sorry to hear that. Are you okay? Did you hurt yourself when it happened?",
+          "demo_complete": false
+        },
+        {
+          "user": "maybe 2 mins, forgot my meds yesterday",
+          "simi": "I'm so sorry you had a",
+          "demo_complete": false
+        },
+        {
+          "user": "no aura",
+          "simi": "Thanks for letting me know. Logging that you had a seizure this morning, lasting about 2 minutes, and that you didn't have an aura.\nLogged ✓\n\nI'm also noting that",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
       "status": "pass"
     },
     {
-      "id": "sz_low_literacy",
-      "tool": "seizure_logging",
+      "id": "f_sz_low_literacy",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "simplified language, still collects fields",
       "turns": [
         {
           "user": "i fell down again",
-          "simi": "Oh no, are you okay? Did you hit your head or get hurt at all?"
+          "simi": "Oh no, I'm sorry to hear that! Are you okay? Did you hurt yourself when you fell?",
+          "demo_complete": false
         }
       ],
+      "flags": [],
       "status": "pass"
     },
     {
-      "id": "med_missed",
-      "tool": "medication_logging",
-      "status": "error",
-      "error": "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 10, model: gemini-2.5-flash-lite\nPlease retry in 48.854139727s. [{\"@type\":\"type.googleapis.com/google.rpc.Help\",\"links\":[{\"description\":\"Learn more about Gemini API quotas\",\"url\":\"https://ai.google.dev/gemini-api/docs/rate-limits\"}]},{\"@type\":\"type.googleapis.com/google.rpc.QuotaFailure\",\"violations\":[{\"quotaMetric\":\"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\"quotaId\":\"GenerateRequestsPerMinutePerProjectPerModel-FreeTier\",\"quotaDimensions\":{\"location\":\"global\",\"model\":\"gemini-2.5-flash-lite\"},\"quotaValue\":\"10\"}]},{\"@type\":\"type.googleapis.com/google.rpc.RetryInfo\",\"retryDelay\":\"48s\"}]"
+      "id": "f_med_missed",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "no shame, logs miss, asks about refill",
+      "turns": [
+        {
+          "user": "i forgot to take my pills this morning",
+          "simi": "Hey, no worries at all, it happens. Just logged that you missed your morning dose today. ✓\n\nHow are you doing on your current supply? Just want to make sure you're not running low.",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
     },
     {
-      "id": "med_taken",
-      "tool": "medication_logging",
-      "status": "error",
-      "error": "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+      "id": "f_med_taken",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "confirms and logs taken",
+      "turns": [
+        {
+          "user": "just took my meds",
+          "simi": "Glad to hear it! Logged ✓",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
     },
     {
-      "id": "med_side_effects",
-      "tool": "medication_logging",
+      "id": "f_med_side_effects",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "treats refusal as adherence risk, flags provider",
       "turns": [
         {
           "user": "these pills make me so tired i dont want to take them",
-          "simi": "Bummer, I hear you. Feeling wiped out is rough. When did you start feeling this tired?"
+          "simi": "Ugh, that sounds really tough. Did",
+          "demo_complete": false
         }
       ],
+      "flags": [],
       "status": "pass"
     },
     {
-      "id": "med_running_out",
-      "tool": "medication_logging",
+      "id": "f_med_running_out",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "asks days remaining, treats as refill trigger",
       "turns": [
         {
           "user": "i only have like 3 pills left",
-          "simi": "Hey! How many days do you think those will last you?"
+          "simi": "Hey! Sounds like your meds are running a bit low. Which medication is that for? I can send a heads-up to your pharmacy if you'd like.",
+          "demo_complete": false
         }
       ],
+      "flags": [],
       "status": "pass"
     },
     {
-      "id": "sched_basic",
-      "tool": "provider_scheduling",
+      "id": "f_sched_basic",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "specific name day and time, mentions visit summary",
       "turns": [
         {
           "user": "i think i need to talk to my doctor",
-          "simi": "I can help with that. When would be a good time for you to chat with Dr. Patel?"
+          "simi": "Hey there! I can totally help you get that set up. What day and time works best for you to chat with your doctor?",
+          "demo_complete": false
         }
       ],
+      "flags": [],
       "status": "pass"
     },
     {
-      "id": "sched_with_concern",
-      "tool": "provider_scheduling",
+      "id": "f_sched_concern",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "acknowledges concern, schedules with specific time",
       "turns": [
         {
           "user": "i need to see my neurologist, ive been having more seizures",
-          "simi": "Okay, I can help with that. When would be a good time for you to connect with Dr. Patel? I can get you in as early as this Thursday afternoon."
+          "simi": "Oh no, I'm sorry to hear you",
+          "demo_complete": false
         }
       ],
+      "flags": [],
       "status": "pass"
     },
     {
-      "id": "risk_multi_factor",
-      "tool": "risk_forecasting",
+      "id": "f_risk_immediate",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "immediate alert with specific factors, no follow-up questions first",
       "turns": [
         {
-          "user": "had a seizure this morning, didn't sleep well, missed my dose yesterday",
-          "simi": "Oh no, sorry to hear about the seizure this morning! Can you tell me a bit about what happened? And how long did it last?"
+          "user": "had a seizure this morning, didnt sleep well, missed my dose yesterday",
+          "simi": "Hey there. Sounds like a tough start to",
+          "demo_complete": false
         }
       ],
+      "flags": [],
       "status": "pass"
     },
     {
-      "id": "risk_after_low_mood",
-      "tool": "risk_forecasting",
-      "status": "error",
-      "error": "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash-lite\nPlease retry in 6.219271315s. [{\"@type\":\"type.googleapis.com/google.rpc.Help\",\"links\":[{\"description\":\"Learn more about Gemini API quotas\",\"url\":\"https://ai.google.dev/gemini-api/docs/rate-limits\"}]},{\"@type\":\"type.googleapis.com/google.rpc.QuotaFailure\",\"violations\":[{\"quotaMetric\":\"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\"quotaId\":\"GenerateRequestsPerDayPerProjectPerModel-FreeTier\",\"quotaDimensions\":{\"location\":\"global\",\"model\":\"gemini-2.5-flash-lite\"},\"quotaValue\":\"20\"}]},{\"@type\":\"type.googleapis.com/google.rpc.RetryInfo\",\"retryDelay\":\"6s\"}]"
+      "id": "f_risk_multi_turn",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "connects mood + missed doses in risk alert",
+      "turns": [
+        {
+          "user": "been feeling really low",
+          "simi": "Hey, I'm sorry to hear that. It's totally okay to feel that way sometimes.\n\nOn a scale of 1 to 5, with 1 being really rough and 5 being great, how would you rate your energy and mood right now?",
+          "demo_complete": false
+        },
+        {
+          "user": "1",
+          "simi": "Thanks for being honest. A 1 sounds really tough, and I'm sorry you're going through that.\n\nI'm flagging this for your care team to review. In the meantime, please know I'm here to listen if you want to chat more about it.",
+          "demo_complete": false
+        },
+        {
+          "user": "also forgot my meds twice this week",
+          "simi": "Oh, I hear you. It happens sometimes, so don't beat yourself up about it. I've noted that you missed your meds twice this week. Logged ✓\n\nSince you've been feeling really low and also missed your medication a couple of times, I just want to give you a heads-up. These things together can sometimes make you more vulnerable to a seizure.\n\nMaybe try to set a quick reminder on your phone or find a consistent time to take them today?\n\nHow are you doing on your current supply of medication? Are you running low at all?",
+          "demo_complete": false
+        }
+      ],
+      "flags": [
+        "WARN: possible scale inversion — 5 labeled as rough",
+        "WARN: possible scale inversion — 1 labeled as great"
+      ],
+      "status": "warn"
     },
     {
-      "id": "refill_critical",
-      "tool": "refill_reminder",
-      "status": "error",
-      "error": "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash-lite\nPlease retry in 2.013245929s. [{\"@type\":\"type.googleapis.com/google.rpc.Help\",\"links\":[{\"description\":\"Learn more about Gemini API quotas\",\"url\":\"https://ai.google.dev/gemini-api/docs/rate-limits\"}]},{\"@type\":\"type.googleapis.com/google.rpc.QuotaFailure\",\"violations\":[{\"quotaMetric\":\"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\"quotaId\":\"GenerateRequestsPerDayPerProjectPerModel-FreeTier\",\"quotaDimensions\":{\"location\":\"global\",\"model\":\"gemini-2.5-flash-lite\"},\"quotaValue\":\"20\"}]},{\"@type\":\"type.googleapis.com/google.rpc.RetryInfo\",\"retryDelay\":\"2s\"}]"
+      "id": "f_refill_critical",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "contact pharmacy TODAY, flags provider immediately",
+      "turns": [
+        {
+          "user": "i only have 2 days of medication left",
+          "simi": "Oh wow, that's really cutting it close! Please call your pharmacy right away to get that refilled today. I'm also sending a heads-up to your care team just in case.",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
     },
     {
-      "id": "refill_soon",
-      "tool": "refill_reminder",
-      "status": "error",
-      "error": "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash-lite\nPlease retry in 57.798274998s. [{\"@type\":\"type.googleapis.com/google.rpc.Help\",\"links\":[{\"description\":\"Learn more about Gemini API quotas\",\"url\":\"https://ai.google.dev/gemini-api/docs/rate-limits\"}]},{\"@type\":\"type.googleapis.com/google.rpc.QuotaFailure\",\"violations\":[{\"quotaMetric\":\"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\"quotaId\":\"GenerateRequestsPerDayPerProjectPerModel-FreeTier\",\"quotaDimensions\":{\"location\":\"global\",\"model\":\"gemini-2.5-flash-lite\"},\"quotaValue\":\"20\"}]},{\"@type\":\"type.googleapis.com/google.rpc.RetryInfo\",\"retryDelay\":\"57s\"}]"
+      "id": "f_refill_soon",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "heads-up tone, flags pharmacy, Refill flagged ✓",
+      "turns": [
+        {
+          "user": "running a bit low on my prescription",
+          "simi": "Hey there! Okay, good catch. Which prescription are you thinking of, and how many days of supply do you have left?",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
     },
     {
-      "id": "cg_privacy",
-      "tool": "caregiver_coordination",
-      "status": "error",
-      "error": "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash-lite\nPlease retry in 53.602162762s. [{\"@type\":\"type.googleapis.com/google.rpc.Help\",\"links\":[{\"description\":\"Learn more about Gemini API quotas\",\"url\":\"https://ai.google.dev/gemini-api/docs/rate-limits\"}]},{\"@type\":\"type.googleapis.com/google.rpc.QuotaFailure\",\"violations\":[{\"quotaMetric\":\"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\"quotaId\":\"GenerateRequestsPerDayPerProjectPerModel-FreeTier\",\"quotaDimensions\":{\"location\":\"global\",\"model\":\"gemini-2.5-flash-lite\"},\"quotaValue\":\"20\"}]},{\"@type\":\"type.googleapis.com/google.rpc.RetryInfo\",\"retryDelay\":\"53s\"}]"
+      "id": "f_cg_privacy",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "acknowledges stigma sensitivity first, no immediate coordination",
+      "turns": [
+        {
+          "user": "my family doesnt know about my condition",
+          "simi": "Thanks for sharing that with me. That sounds like a really personal thing to navigate, and it's totally okay if you're not ready to share it with them.\n\nI just want you to know I won't share anything with anyone without your explicit permission, ever. My job is to support *you*.",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
     },
     {
-      "id": "cg_wants_help",
-      "tool": "caregiver_coordination",
-      "status": "error",
-      "error": "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash-lite\nPlease retry in 49.428571096s. [{\"@type\":\"type.googleapis.com/google.rpc.Help\",\"links\":[{\"description\":\"Learn more about Gemini API quotas\",\"url\":\"https://ai.google.dev/gemini-api/docs/rate-limits\"}]},{\"@type\":\"type.googleapis.com/google.rpc.QuotaFailure\",\"violations\":[{\"quotaMetric\":\"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\"quotaId\":\"GenerateRequestsPerDayPerProjectPerModel-FreeTier\",\"quotaDimensions\":{\"location\":\"global\",\"model\":\"gemini-2.5-flash-lite\"},\"quotaValue\":\"20\"}]},{\"@type\":\"type.googleapis.com/google.rpc.RetryInfo\",\"retryDelay\":\"49s\"}]"
+      "id": "f_cg_consent",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "confirms exactly what gets shared, not everything",
+      "turns": [
+        {
+          "user": "my mom helps me manage my meds, can you keep her updated?",
+          "simi": "That's great your mom helps you",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
     },
     {
-      "id": "cross_sz_then_mood",
-      "tool": "cross_tool",
-      "status": "error",
-      "error": "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash-lite\nPlease retry in 45.203432201s. [{\"@type\":\"type.googleapis.com/google.rpc.Help\",\"links\":[{\"description\":\"Learn more about Gemini API quotas\",\"url\":\"https://ai.google.dev/gemini-api/docs/rate-limits\"}]},{\"@type\":\"type.googleapis.com/google.rpc.QuotaFailure\",\"violations\":[{\"quotaMetric\":\"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\"quotaId\":\"GenerateRequestsPerDayPerProjectPerModel-FreeTier\",\"quotaDimensions\":{\"model\":\"gemini-2.5-flash-lite\",\"location\":\"global\"},\"quotaValue\":\"20\"}]},{\"@type\":\"type.googleapis.com/google.rpc.RetryInfo\",\"retryDelay\":\"45s\"}]"
+      "id": "f_cg_onboarded",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "auto-alerts caregiver on high risk, confirms sent",
+      "turns": [
+        {
+          "user": "been feeling really low",
+          "simi": "Aw, I'm sorry to hear that. It's totally okay to feel that way sometimes.\n\nOn a scale of 1 to 5, where 1 is feeling really rough and 5 is feeling great, how would you rate your mood right now?",
+          "demo_complete": false
+        },
+        {
+          "user": "1",
+          "simi": "Thanks for sharing that with me. I'm really sorry you're feeling so rough right now.\n\nI've logged this, and I'll make sure your care team sees it so they can check in. I'm here to chat if you need anything else. Logged ✓",
+          "demo_complete": false
+        },
+        {
+          "user": "had a seizure tuesday too",
+          "simi": "Oh no, I'm so sorry to hear that. That must have been really tough, especially with how you're feeling now.\n\nCan you tell me a little more about it? How long did it last, and do you remember if anything might have triggered it?",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
     },
     {
-      "id": "cross_med_then_risk",
-      "tool": "cross_tool",
+      "id": "f_cross_sz_mh",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "seizure logged then mental health check-in follows naturally",
+      "turns": [
+        {
+          "user": "had a seizure yesterday",
+          "simi": "Oh no, I'm really sorry to hear that. Are you okay?\n\nCan you tell me a little more about it? How long did it last, and do you remember if anything might have triggered it?",
+          "demo_complete": false
+        },
+        {
+          "user": "about 3 mins, missed my meds",
+          "simi": "Thanks for sharing that. I've logged your",
+          "demo_complete": false
+        },
+        {
+          "user": "no aura",
+          "simi": "seizure_logging: Log seizure - Duration: 3 mins, Trigger: missed meds, Aura: no\nmedication_logging: Log missed dose - Type: unspecified, Reason: unknown, Status: missed\nrisk_forecasting: Generate alert - Seizure log + missed dose, suggesting immediate action.Got it, thanks for confirming.\n\nLogged ✓ Seizure yesterday, about 3 mins, triggered by missed meds, no aura.\n\nMissing meds can definitely be a factor. How are you feeling emotionally after the seizure? Sometimes they can really take a toll. On a scale of 1-5, with 1 being rough and 5 being great, how would you rate your mood today?",
+          "demo_complete": false
+        }
+      ],
+      "flags": [
+        "WARN: possible scale inversion — 5 labeled as rough",
+        "WARN: possible scale inversion — 1 labeled as great"
+      ],
+      "status": "warn"
+    },
+    {
+      "id": "f_cross_med_risk",
+      "mode": "freeform",
+      "cap": null,
+      "expect": "missed doses + poor sleep triggers immediate risk alert",
+      "turns": [
+        {
+          "user": "forgot my meds again",
+          "simi": "Oh no, sorry to hear that! It happens sometimes. Just to confirm, you missed your dose today, right?",
+          "demo_complete": false
+        },
+        {
+          "user": "third time this week",
+          "simi": "Hey, it's okay, these things happen. I've logged that you missed your meds today. Logged ✓\n\n",
+          "demo_complete": false
+        },
+        {
+          "user": "im also not sleeping",
+          "simi": "Hey, Simi here. Just a heads",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
+    },
+    {
+      "id": "d_medication",
+      "mode": "demo",
+      "cap": "medication",
+      "expect": "natural opener, asks about meds, not 'start medication demo'",
+      "turns": [
+        {
+          "user": "[KICKOFF]",
+          "simi": "Hey there! 👋 Just checking in. How are things going with your meds today? Did you get a chance to take them?",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
+    },
+    {
+      "id": "d_seizure",
+      "mode": "demo",
+      "cap": "seizure",
+      "expect": "natural seizure check-in opener",
+      "turns": [
+        {
+          "user": "[KICKOFF]",
+          "simi": "Hey there! Simi here, just checking in. Hope you're having a good day so far! How are things feeling for you today? 😊",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
+    },
+    {
+      "id": "d_mental",
+      "mode": "demo",
+      "cap": "mental",
+      "expect": "casual 1-5 energy check, no clinical language",
+      "turns": [
+        {
+          "user": "[KICKOFF]",
+          "simi": "Hey there! Just checking in, how's your energy holding up today? On a scale of 1 to 5, where 1 is feeling pretty rough and 5 is feeling great, how would you rate it?",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
+    },
+    {
+      "id": "d_risk",
+      "mode": "demo",
+      "cap": "risk",
+      "expect": "natural risk conversation opener",
+      "turns": [
+        {
+          "user": "[KICKOFF]",
+          "simi": "Hey there! Simi here, just checking",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
+    },
+    {
+      "id": "d_schedule",
+      "mode": "demo",
+      "cap": "schedule",
+      "expect": "offers to schedule, asks for preferred time",
+      "turns": [
+        {
+          "user": "[KICKOFF]",
+          "simi": "Hey there! Simi here. Just checking in – how are you doing today? Anything on your mind?",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
+    },
+    {
+      "id": "d_caregiver",
+      "mode": "demo",
+      "cap": "caregiver",
+      "expect": "asks who helps and what to share",
+      "turns": [
+        {
+          "user": "[KICKOFF]",
+          "simi": "Hey there! Just checking in. Do you have anyone who helps you out with your epilepsy care, like a family member or friend? We can help keep them in the loop if you'd like.",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
+    },
+    {
+      "id": "d_refill",
+      "mode": "demo",
+      "cap": "refill",
+      "expect": "asks about supply level",
+      "turns": [
+        {
+          "user": "[KICKOFF]",
+          "simi": "Hey there! Just checking in on your meds – how are your refills looking these days? Want to make sure you're all set.",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
+    },
+    {
+      "id": "d_language",
+      "mode": "demo",
+      "cap": "language",
+      "expect": "natural opener that invites language switch",
+      "turns": [
+        {
+          "user": "[KICKOFF]",
+          "simi": "Hey there! 👋 Simi here, just checking in. How are you feeling today? Anything I can help with?",
+          "demo_complete": false
+        }
+      ],
+      "flags": [],
+      "status": "pass"
+    },
+    {
+      "id": "d_mental_full",
+      "mode": "demo",
       "status": "error",
-      "error": "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash-lite\nPlease retry in 41.033073003s. [{\"@type\":\"type.googleapis.com/google.rpc.Help\",\"links\":[{\"description\":\"Learn more about Gemini API quotas\",\"url\":\"https://ai.google.dev/gemini-api/docs/rate-limits\"}]},{\"@type\":\"type.googleapis.com/google.rpc.QuotaFailure\",\"violations\":[{\"quotaMetric\":\"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\"quotaId\":\"GenerateRequestsPerDayPerProjectPerModel-FreeTier\",\"quotaDimensions\":{\"location\":\"global\",\"model\":\"gemini-2.5-flash-lite\"},\"quotaValue\":\"20\"}]},{\"@type\":\"type.googleapis.com/google.rpc.RetryInfo\",\"retryDelay\":\"41s\"}]"
+      "error": "[GoogleGenerativeAI Error]: First content should be with role 'user', got model",
+      "flags": []
+    },
+    {
+      "id": "d_schedule_full",
+      "mode": "demo",
+      "status": "error",
+      "error": "[GoogleGenerativeAI Error]: First content should be with role 'user', got model",
+      "flags": []
+    },
+    {
+      "id": "d_medication_full",
+      "mode": "demo",
+      "status": "error",
+      "error": "[GoogleGenerativeAI Error]: First content should be with role 'user', got model",
+      "flags": []
+    },
+    {
+      "id": "d_number_collision",
+      "mode": "demo",
+      "status": "error",
+      "error": "[GoogleGenerativeAI Error]: First content should be with role 'user', got model",
+      "flags": []
     }
   ]
 }

@@ -227,7 +227,7 @@ ${t.rules.map(r => `- ${r}`).join("\n")}
 Opener style: ${t.opener}
 `).join("\n")}
 
-Never mention tool names to the user. Use them naturally.`;
+Never mention tool names to the user. Use them naturally. NEVER output internal labels like "seizure_logging:", "medication_logging:", "risk_forecasting:", or any tool name prefix in your response. Your response must read as a natural text message — no metadata, no labels, no structured logging visible to the patient.`;
 
 // ─── System Prompts ───────────────────────────────────────────────────────────
 
@@ -309,7 +309,7 @@ async function runCapabilityStep(session, userMsg, isKickoff = false) {
   const chat = model.startChat({
     history: pastHistory,
     systemInstruction: { role: "system", parts: [{ text: CAP_SYSTEM(currentCap) }] },
-    generationConfig: { maxOutputTokens: 1024 },
+    generationConfig: { maxOutputTokens: 2048 },
   });
 
   const result = await chat.sendMessage(messageToSend);
@@ -347,7 +347,6 @@ async function runFreeform(session, userMsg) {
   const reply = resp.text();
 
   console.log("[Freeform] finish:", resp.candidates?.[0]?.finishReason, "| len:", reply.length, "| reply:", reply);
-
   // Push model response
   history.push({ role: "model", parts: [{ text: reply }] });
 
@@ -489,4 +488,5 @@ app.get("/qr", (_, res) => {
 });
 
 
-app.listen(process.env.PORT || 3000, () => console.log("SimisAI running ✓"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, "0.0.0.0", () => console.log(`SimisAI running on port ${PORT} ✓`));
