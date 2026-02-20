@@ -45,9 +45,17 @@ async function sendText(to, body) {
 
 // ─── Menu ─────────────────────────────────────────────────────────────────────
 
-const MENU = `👋 I'm *Simi* — an AI health companion for epilepsy patients that app-based tools leave behind. No app, no smartphone needed.
+const MENU = `👋 Welcome to the *SimisAI* live demo.
 
-What would you like to explore?
+Simi is an AI health companion for epilepsy patients that existing tools leave behind — no app, no smartphone, no internet required. Just a text message, on any phone, in any language.
+
+What makes SimisAI different:
+• Works on any phone including basic flip phones
+• Fully multilingual and culturally adaptive
+• Billable under Remote Patient Monitoring (RPM) codes
+• Reaches the 40% of low-income patients excluded by app-based care
+
+Pick a capability to experience it firsthand:
 
 1️⃣ Medication Reminders
 2️⃣ Seizure Tracking
@@ -59,7 +67,7 @@ What would you like to explore?
 8️⃣ Side Effect Monitoring
 9️⃣ Language Support
 
-Reply with a number to begin.`;
+Reply with a number to begin. Reply 0 at any time to return here.`;
 
 async function sendMenu(to) {
   return sendText(to, MENU);
@@ -237,7 +245,7 @@ async function handleMessage(from, body) {
     const { reply, isDone } = await runCapabilityStep(session, `Start the ${CAPABILITIES[capId]} demo. Send your opening message as Simi.`);
     await sendText(from, reply);
     if (isDone) {
-      await sendText(from, `💡 ${INSIGHTS[capId]}\n\nReply 0 to explore another feature or keep chatting.`);
+      await sendText(from, `💡 *Why this matters:* ${INSIGHTS[capId]}\n\nReply 0 to explore another capability, or keep texting to go deeper.`);
       session.currentCap = null;
     }
     return;
@@ -248,7 +256,7 @@ async function handleMessage(from, body) {
     const { reply, isDone } = await runCapabilityStep(session, msg);
     await sendText(from, reply);
     if (isDone) {
-      await sendText(from, `💡 ${INSIGHTS[session.currentCap]}\n\nReply 0 to explore another feature or keep chatting.`);
+      await sendText(from, `💡 *Why this matters:* ${INSIGHTS[session.currentCap]}\n\nReply 0 to explore another capability, or keep texting to go deeper.`);
       session.currentCap = null;
     }
     return;
