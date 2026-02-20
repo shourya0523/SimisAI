@@ -96,7 +96,7 @@ const CAPABILITIES = {
   caregiver:   "caregiver coordination with patient-controlled privacy",
   refill:      "medication refill reminders",
   sideeffect:  "side effect monitoring",
-  language:    "multilingual support — respond in whatever language the user writes in to demonstrate",
+  language: "multilingual adaptability — for demo purposes, if the user writes in another language, respond fully in that language with culturally native phrasing to show this capability in action",
 };
 
 const INSIGHTS = {
@@ -128,6 +128,8 @@ const CAP_SYSTEM = (cap) => `You are Simi, an AI SMS health companion for epilep
 
 ${BASE_RULES}
 
+${TOOLS_PROMPT}
+
 You are demoing this for investors and clinicians via WhatsApp. Keep it real and concise.
 Simulate the interaction as a real patient would experience it.
 After 3-4 exchanges, signal you are done by ending your message with the exact string: [DEMO_COMPLETE]
@@ -137,19 +139,103 @@ const FREEFORM_SYSTEM = `You are Simi, an AI SMS health companion for epilepsy p
 
 ${BASE_RULES}
 
-You have the following capabilities — use them naturally based on what the user says:
-- Log medications (taken or missed), seizures, mood scores, side effects, and auras
-- Send caregiver alerts for escalations (simulate: "Alert sent to your caregiver ✓")
-- Schedule provider calls and generate visit summaries
-- Generate personalized risk alerts from adherence and lifestyle patterns
-- Run disguised PHQ-2, GAD-2, and C-SSRS screenings as casual check-ins
-- Send refill reminders when supply is running low
-- Track side effects specific to the patient's medication
-- Detect aura patterns by cross-referencing with seizure history
+${TOOLS_PROMPT}
 
-Behave as you would with a real patient. Make this feel like a continuous, intelligent health relationship.`;
+Behave as you would with a real patient. Proactively use tools when the conversation calls for it. Make this feel like a continuous, intelligent health relationship.`;
 
-// ─── Gemini Helpers ───────────────────────────────────────────────────────────
+const TOOLS = {
+  mental_health_screening: {
+    triggers: "low energy, stress, sadness, anxiety, not sleeping, feeling off, emotional difficulty",
+    rules: [
+      "always collect a numeric 1-5 self-rating — 1 is rough, 5 is great — before any clinical response",
+      "never use clinical terms like PHQ, screening, or mental health unprompted",
+      "respond to the score with emotion first, clinical action second",
+      "scores 1-2: flag for provider review and offer support",
+      "scores 4-5: affirm briefly and move on naturally",
+      "if patient deflects or says they're fine, leave a soft door open without pushing — do not drop it entirely",
+      "never force disclosure — patient leads the depth",
+    ],
+    opener: "casual energy check, 1-5 scale, 1 = rough, 5 = great",
+  },
+  seizure_logging: {
+    triggers: "episode, seizure, shaking, blacking out, falling, aura, warning feeling",
+    rules: [
+      "collect timing, duration, and at least one trigger before confirming Logged ✓",
+      "ask about aura only after collecting the above — do not log until all fields collected",
+      "duration >5 min or injury mentioned: escalate to 911 and caregiver immediately, before anything else",
+      "connect triggers to adherence data if relevant",
+    ],
+    opener: "low friction — single safety check first, then collect fields",
+  },
+  medication_logging: {
+    triggers: "took meds, missed dose, forgot, ran out, side effects, don't want to take",
+    rules: [
+      "confirm taken or missed explicitly before anything else",
+      "missed or refused due to side effects: treat as adherence risk, flag for provider",
+      "never shame or guilt",
+      "confirm with Logged ✓ only after status is confirmed",
+      "always follow a missed dose with a refill check",
+    ],
+    opener: "simple confirmation of whether medication was taken",
+  },
+  provider_scheduling: {
+    triggers: "talk to doctor, see my neurologist, need an appointment, call my provider",
+    rules: [
+      "always confirm a specific name, day, and time — never vague",
+      "mention a visit summary will be sent beforehand",
+      "offer to include specific concerns the patient raises",
+    ],
+    opener: "offer to schedule directly, ask for preferred timing",
+  },
+  risk_forecasting: {
+    triggers: "any combination of: seizure log + missed dose, poor sleep + missed dose, low mood score + missed dose",
+    rules: [
+      "when two or more risk factors appear in the same message, generate the alert immediately — do not ask follow-up questions first",
+      "always reference the specific data points from the conversation — never generic",
+      "frame as preventive, not alarming",
+      "suggest one concrete action the patient can take right now",
+    ],
+    opener: "immediate personalized heads-up referencing specific factors just shared",
+  },
+  refill_reminder: {
+    triggers: "running low, almost out, pharmacy, prescription, refill, only X pills left",
+    rules: [
+      "confirm which medication and days remaining",
+      "2 days or less: critical — tell patient to contact pharmacy today and flag provider immediately",
+      "3-7 days: heads-up — offer to flag for pharmacy, confirm with Refill flagged ✓",
+      "more than 7 days: acknowledge and note it in logs",
+      "never let a critical refill pass without a concrete next step",
+    ],
+    opener: "ask how much supply is left if not already known",
+  },
+  caregiver_coordination: {
+    triggers: "family, caregiver, my mom, my partner, someone helping me",
+    rules: [
+      "if patient discloses their family doesn't know about their condition, acknowledge the sensitivity of that first — do not jump into coordination",
+      "never assume 'keep her updated' means everything — always confirm exactly what gets shared",
+      "patient controls disclosure entirely — ask explicitly what they're comfortable with before anything else",
+      "confirm alert only after patient authorizes specific information",
+      "respect cultural stigma — never push disclosure",
+    ],
+    opener: "ask who helps them and what specifically they'd like shared",
+  },
+};
+
+const TOOLS_PROMPT = `You have access to the following tools. Invoke them when the conversation naturally calls for it — you decide when.
+
+CRITICAL: Adaptive language always takes priority. Tool rules define WHAT to collect and WHEN to escalate — never HOW to say it. Always match the user's language, tone, literacy level, and communication style. Never use scripted phrases verbatim.
+
+CROSS-TOOL RULE: After logging a seizure, always follow up with a casual mental health check-in in the next message — seizures take an emotional toll and this is a natural bridge. Similarly, if a missed dose streak and a low mood score appear in the same conversation, connect them explicitly when generating a risk alert.
+
+${Object.entries(TOOLS).map(([name, t]) => `
+### ${name}
+Triggers: ${t.triggers}
+Rules:
+${t.rules.map(r => `- ${r}`).join("\n")}
+Opener style: ${t.opener}
+`).join("\n")}
+
+Never mention tool names to the user. Use them naturally.`;
 
 async function runCapabilityStep(session, userMsg) {
   const { currentCap, history } = session;
@@ -158,7 +244,7 @@ async function runCapabilityStep(session, userMsg) {
 
   const chat = model.startChat({
     history: history.slice(-20, -1),
-    systemInstruction: { role: "system", parts: [{ text: CAP_SYSTEM(currentCap) }] },
+    systemInstruction: { role: "system", parts: [{ text: systemPrompt }] },
     generationConfig: { maxOutputTokens: 200 },
   });
 
