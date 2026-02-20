@@ -8,7 +8,15 @@ const app = express();
 app.use(express.urlencoded({ extended: false }));
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const model = genAI.getGenerativeModel({
+  model: "gemini-2.5-flash",
+  safetySettings: [
+    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
+  ],
+});
 
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -294,11 +302,14 @@ async function runCapabilityStep(session, userMsg, isKickoff = false) {
   const chat = model.startChat({
     history: pastHistory,
     systemInstruction: { role: "system", parts: [{ text: CAP_SYSTEM(currentCap) }] },
-    generationConfig: { maxOutputTokens: 200 },
+    generationConfig: { maxOutputTokens: 512 },
   });
 
   const result = await chat.sendMessage(messageToSend);
-  const reply = result.response.text();
+  const resp = result.response;
+  const reply = resp.text();
+
+  console.log("[CapStep] finish:", resp.candidates?.[0]?.finishReason, "| len:", reply.length, "| reply:", reply);
 
   // Push model response
   history.push({ role: "model", parts: [{ text: reply }] });
@@ -321,11 +332,14 @@ async function runFreeform(session, userMsg) {
   const chat = model.startChat({
     history: pastHistory,
     systemInstruction: { role: "system", parts: [{ text: FREEFORM_SYSTEM }] },
-    generationConfig: { maxOutputTokens: 300 },
+    generationConfig: { maxOutputTokens: 1024 },
   });
 
   const result = await chat.sendMessage(userMsg);
-  const reply = result.response.text();
+  const resp = result.response;
+  const reply = resp.text();
+
+  console.log("[Freeform] finish:", resp.candidates?.[0]?.finishReason, "| len:", reply.length, "| reply:", reply);
 
   // Push model response
   history.push({ role: "model", parts: [{ text: reply }] });
