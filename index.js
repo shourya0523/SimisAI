@@ -482,7 +482,7 @@ app.get("/qr", (_, res) => {
       <h1>Try SimisAI</h1>
       <p>Scan to start the demo on WhatsApp</p>
       <img src="${qrUrl}" alt="QR Code" width="300" height="300" />
-      <a class="link" href="${waLink}">Or tap here on mobile</a>
+      <a class="link" href="/join">Or tap here on mobile</a>
     </body></html>
   `);
 });
