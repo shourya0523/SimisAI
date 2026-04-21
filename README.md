@@ -37,16 +37,29 @@ Patient (any phone)
  Twilio (WhatsApp / SMS)
     │
     ▼
- Express.js server
+ Express.js server (index.js)
     │
-    ├── Session manager (per-patient state)
-    ├── Semantic intent router (9 clinical tools)
-    └── Gemini 2.5 Flash (reasoning + multilingual understanding)
+    ├── Route Handlers (src/handlers/)
+    │   ├── messageHandler.js - Main conversation logic
+    │   └── routeHandlers.js - HTTP endpoints & QR management
+    │
+    ├── Services (src/services/)
+    │   ├── sessionManager.js - Per-patient state tracking
+    │   ├── twilioService.js - WhatsApp/SMS messaging
+    │   └── geminiService.js - AI conversation engine
+    │
+    └── Configuration (src/config/)
+        ├── constants.js - Menu, capabilities, insights
+        ├── tools.js - Clinical tool definitions
+        └── prompts.js - System prompts & AI instructions
 ```
+
+### Key Features
 
 - **Intent detection is semantic, not keyword-based.** Tools activate on meaning, across any language, dialect, slang, or indirect phrasing.
 - **Two modes:** Demo mode (structured capability walkthrough for investors/clinicians) and freeform mode (full production patient interaction).
 - **Adaptive style:** Simi mirrors the patient's tone, vocabulary, sentence length, and literacy level. Tool rules define *what* to collect and *when* to escalate — never *how* to say it.
+- **Modular design:** Clean separation between configuration, services, and handlers for easy maintenance and testing.
 
 ## Setup
 
@@ -73,6 +86,27 @@ node index.js
 ```
 
 Configure your Twilio WhatsApp webhook to point to `https://your-domain/sms` (POST).
+
+## Project Structure
+
+```
+SimisAI/
+├── index.js                    # Main entry point
+├── src/
+│   ├── config/                 # Configuration files
+│   │   ├── constants.js        # Menu, capabilities, insights
+│   │   ├── tools.js            # Clinical tool definitions
+│   │   └── prompts.js          # AI system prompts
+│   ├── services/               # Business logic services
+│   │   ├── sessionManager.js   # User session state management
+│   │   ├── twilioService.js    # WhatsApp/SMS messaging
+│   │   └── geminiService.js    # Gemini AI integration
+│   └── handlers/               # Request handlers
+│       ├── messageHandler.js   # Core message routing logic
+│       └── routeHandlers.js    # HTTP route handlers
+├── package.json
+└── README.md
+```
 
 ### Try the Demo
 
