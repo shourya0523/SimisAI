@@ -1,6 +1,9 @@
-# SimisAI
+<img width="657" height="251" alt="image" src="https://github.com/user-attachments/assets/bfcde710-344c-4260-a21c-b2e1d07b3e8a" />
 
-**AI health companion for epilepsy patients. No app. No smartphone. No internet. Just a text.**
+
+# SimsAI
+
+**AI health companion for chronic health patients. No app. No smartphone. No internet. Just a text.**
 
 SimisAI (Simi) is an SMS-based health companion that provides continuous epilepsy care on any phone — including basic flip phones. It reaches the 40% of low-income patients that app-based digital health tools leave behind.
 
