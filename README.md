@@ -1,11 +1,11 @@
 <img width="657" height="251" alt="image" src="https://github.com/user-attachments/assets/bfcde710-344c-4260-a21c-b2e1d07b3e8a" />
 
 
-# SimsAI
+# Simi's AI
 
 **AI health companion for chronic health patients. No app. No smartphone. No internet. Just a text.**
 
-SimisAI (Simi) is an SMS-based health companion that provides continuous epilepsy care on any phone — including basic flip phones. It reaches the 40% of low-income patients that app-based digital health tools leave behind.
+Simi's AI (Simi) is an SMS-based health companion that provides continuous epilepsy care on any phone — including basic flip phones. It reaches the 40% of low-income patients that app-based digital health tools leave behind.
 
 ## Why This Exists
 
@@ -93,7 +93,7 @@ Configure your Twilio WhatsApp webhook to point to `https://your-domain/sms` (PO
 ## Project Structure
 
 ```
-SimisAI/
+Simis-AI/
 ├── index.js                    # Main entry point
 ├── src/
 │   ├── config/                 # Configuration files

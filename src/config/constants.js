@@ -42,11 +42,11 @@ export const INSIGHTS = {
 
 // ─── Menu ─────────────────────────────────────────────────────────────────────
 
-export const MENU = `👋 Welcome to the *SimisAI* live demo.
+export const MENU = `👋 Welcome to the *Simi's AI* live demo.
 
 Simi is an AI health companion for epilepsy patients that existing tools leave behind — no app, no smartphone, no internet required. Just a text message, on any phone, in any language.
 
-What makes SimisAI different:
+What makes Simi's AI different:
 • Works on any phone including basic flip phones
 • Fully multilingual and culturally adaptive
 • Billable under Remote Patient Monitoring (RPM) codes

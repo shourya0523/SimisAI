@@ -5,7 +5,7 @@ import { sendText } from "../services/twilioService.js";
 let qrConfig = {
   phone: "14155238886",
   prefill: "join find-hold",
-  title: "Try SimisAI",
+  title: "Try Simi's AI",
   subtitle: "Scan to start the demo on WhatsApp",
 };
 
@@ -43,7 +43,7 @@ export async function handleSmsWebhook(req, res) {
  * Root route handler
  */
 export function handleRoot(_, res) {
-  res.send("SimisAI running ✓");
+  res.send("Simi's AI running ✓");
 }
 
 /**
